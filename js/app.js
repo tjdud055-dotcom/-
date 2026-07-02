@@ -223,7 +223,7 @@ function cloudUnsubscribe() {
 
 // ── 프로필 체크 / 리다이렉트 ─────────────────────────────────────────────────
 function requireProfile() {
-  if (!DB.getMe()) { location.href = 'profile.html'; return null }
+  if (!DB.getMe()) { location.href = 'auth.html'; return null }
   return DB.getMe()
 }
 

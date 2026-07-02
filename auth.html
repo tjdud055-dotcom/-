@@ -11,10 +11,16 @@
     <a href="index.html" class="font-serif" style="font-size:22px;font-weight:600;color:var(--text);text-decoration:none">교환독서</a>
   </div>
 
-  <div class="card">
-    <!-- Tab -->
+  <div id="no-supabase" class="card hidden text-center" style="padding:32px 24px">
+    <p style="font-size:32px;margin-bottom:12px">⚙️</p>
+    <p class="font-semi mb-2">Supabase 설정이 필요해요</p>
+    <p class="text-sm text-mid mb-4">로그인을 사용하려면 먼저 Supabase 프로젝트를 연결해주세요.</p>
+    <a href="settings.html" class="btn btn-primary btn-sm">설정하러 가기</a>
+  </div>
+
+  <div id="auth-card" class="card hidden">
     <div style="display:flex;background:var(--cream);border-radius:10px;padding:4px;margin-bottom:24px">
-      <button class="tab-btn active" data-mode="login" style="flex:1;padding:8px;border:none;border-radius:8px;background:#fff;font-family:inherit;font-size:14px;font-weight:500;cursor:pointer;transition:all .15s">로그인</button>
+      <button class="tab-btn active" data-mode="login" style="flex:1;padding:8px;border:none;border-radius:8px;background:#fff;box-shadow:0 1px 4px rgba(0,0,0,.08);font-family:inherit;font-size:14px;font-weight:500;cursor:pointer;transition:all .15s">로그인</button>
       <button class="tab-btn" data-mode="signup" style="flex:1;padding:8px;border:none;border-radius:8px;background:transparent;font-family:inherit;font-size:14px;font-weight:500;cursor:pointer;transition:all .15s;color:var(--text-lt)">회원가입</button>
     </div>
 
@@ -23,7 +29,7 @@
     <form id="auth-form" class="fields">
       <div id="username-field" class="field hidden">
         <label class="label">닉네임</label>
-        <input id="username" class="input" type="text" placeholder="독서 닉네임" minlength="2" maxlength="20">
+        <input id="username" class="input" type="text" placeholder="구절에 표시될 이름" minlength="2" maxlength="20">
       </div>
       <div class="field">
         <label class="label">이메일</label>
@@ -38,68 +44,108 @@
   </div>
 </div>
 
-<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
 <script src="js/app.js"></script>
 <script>
-let mode = 'login';
-const sb = getSB();
-if (!sb) throw 0;
+let mode = 'login'
+let sb = null
 
-// 이미 로그인된 경우
-(async () => {
-  const user = await getUser();
-  if (user) location.href = 'dashboard.html';
-})();
+function initSB() {
+  const url = DB.getSupabaseUrl() || _paramFromURL('sburl')
+  const key = DB.getSupabaseKey() || _paramFromURL('sbkey')
+  if (!url || !key) return null
+  if (url && key && !DB.getSupabaseUrl()) DB.setSupabase(url, key)
+  return window.supabase.createClient(url, key)
+}
+
+function setMsg(text, type) {
+  const el = document.getElementById('msg')
+  el.textContent = text
+  el.className = text ? `alert alert-${type} mb-4 text-sm` : 'hidden'
+}
+
+;(async () => {
+  sb = initSB()
+
+  if (!sb) {
+    document.getElementById('no-supabase').classList.remove('hidden')
+    return
+  }
+
+  document.getElementById('auth-card').classList.remove('hidden')
+
+  // 이미 로그인된 경우
+  const { data: { session } } = await sb.auth.getSession()
+  if (session) {
+    const meta = session.user.user_metadata
+    DB.setMe({ name: meta.username || meta.name || session.user.email.split('@')[0], email: session.user.email, userId: session.user.id })
+    location.replace('dashboard.html')
+    return
+  }
+})()
 
 // 탭 전환
 document.querySelectorAll('.tab-btn').forEach(btn => {
   btn.addEventListener('click', () => {
-    mode = btn.dataset.mode;
+    mode = btn.dataset.mode
     document.querySelectorAll('.tab-btn').forEach(b => {
-      b.style.background = b === btn ? '#fff' : 'transparent';
-      b.style.color = b === btn ? 'var(--text)' : 'var(--text-lt)';
-      b.style.boxShadow = b === btn ? '0 1px 4px rgba(0,0,0,.08)' : 'none';
-    });
-    document.getElementById('username-field').classList.toggle('hidden', mode !== 'signup');
-    document.getElementById('auth-btn').textContent = mode === 'login' ? '로그인' : '가입하기';
-    document.getElementById('username').required = mode === 'signup';
-    setMsg('', '');
-  });
-});
+      const active = b === btn
+      b.style.background = active ? '#fff' : 'transparent'
+      b.style.color = active ? 'var(--text)' : 'var(--text-lt)'
+      b.style.boxShadow = active ? '0 1px 4px rgba(0,0,0,.08)' : 'none'
+    })
+    document.getElementById('username-field').classList.toggle('hidden', mode !== 'signup')
+    document.getElementById('username').required = mode === 'signup'
+    document.getElementById('auth-btn').textContent = mode === 'login' ? '로그인' : '가입하기'
+    setMsg('', '')
+  })
+})
 
-function setMsg(text, type) {
-  const el = document.getElementById('msg');
-  el.textContent = text;
-  el.className = text ? `alert alert-${type} mb-4 text-sm` : 'hidden';
-}
+document.getElementById('auth-form').addEventListener('submit', async e => {
+  e.preventDefault()
+  if (!sb) return
 
-document.getElementById('auth-form').addEventListener('submit', async (e) => {
-  e.preventDefault();
-  const btn = document.getElementById('auth-btn');
-  btn.disabled = true; btn.textContent = '처리 중...';
-  setMsg('', '');
+  const btn = document.getElementById('auth-btn')
+  btn.disabled = true; btn.textContent = '처리 중...'
+  setMsg('', '')
 
-  const email    = document.getElementById('email').value.trim();
-  const password = document.getElementById('password').value;
-  const username = document.getElementById('username').value.trim();
+  const email    = document.getElementById('email').value.trim()
+  const password = document.getElementById('password').value
+  const username = document.getElementById('username').value.trim()
 
   if (mode === 'signup') {
-    const { error } = await sb.auth.signUp({ email, password, options: { data: { username } } });
+    if (!username) { setMsg('닉네임을 입력해주세요.', 'pink'); btn.disabled = false; btn.textContent = '가입하기'; return }
+    const { data, error } = await sb.auth.signUp({
+      email, password,
+      options: { data: { username } }
+    })
     if (error) {
-      setMsg('가입 실패: ' + error.message, 'pink');
+      const map = {
+        'User already registered': '이미 가입된 이메일이에요. 로그인해주세요.',
+        'Password should be at least 6 characters': '비밀번호는 6자 이상이어야 해요.',
+      }
+      setMsg(map[error.message] || '가입 실패: ' + error.message, 'pink')
+    } else if (data.session) {
+      // 이메일 확인 비활성화 시 바로 로그인
+      DB.setMe({ name: username, email, userId: data.user.id })
+      location.replace('dashboard.html')
     } else {
-      setMsg('이메일을 확인해주세요. 인증 링크를 보내드렸습니다.', 'green');
+      setMsg('📩 가입 확인 이메일을 보냈어요. 메일함을 확인해주세요.', 'green')
     }
   } else {
-    const { error } = await sb.auth.signInWithPassword({ email, password });
+    const { data, error } = await sb.auth.signInWithPassword({ email, password })
     if (error) {
-      setMsg('이메일 또는 비밀번호가 올바르지 않습니다.', 'pink');
+      setMsg('이메일 또는 비밀번호가 올바르지 않습니다.', 'pink')
     } else {
-      location.href = 'dashboard.html';
+      const meta = data.user.user_metadata
+      const name = meta.username || meta.name || email.split('@')[0]
+      DB.setMe({ name, email, userId: data.user.id })
+      location.replace('dashboard.html')
     }
   }
-  btn.disabled = false;
-  btn.textContent = mode === 'login' ? '로그인' : '가입하기';
-});
+
+  btn.disabled = false
+  btn.textContent = mode === 'login' ? '로그인' : '가입하기'
+})
 </script>
 </body></html>
