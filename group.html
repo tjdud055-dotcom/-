@@ -1,0 +1,358 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>그룹 — 교환독서</title>
+<link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+<nav class="nav"><div class="nav-inner"></div></nav>
+<div class="page-md" id="root"></div>
+
+<script src="js/app.js"></script>
+<script>
+const me = requireProfile(); if (!me) throw 0
+const id = param('id')
+if (!id) { location.href = 'dashboard.html'; throw 0 }
+
+let confirmingId = null   // 소감 입력 중인 멤버 ID
+
+function render() {
+  const g = DB.getGroup(id)
+  if (!g) { location.href = 'dashboard.html'; return }
+  renderNav()
+
+  const done       = g.members.filter(m => m.hasCompleted).length
+  const total      = g.members.length
+  const all        = done === total && total > 0
+  const dl         = daysLeft(g.deadline)
+  const pct        = total ? Math.round(done/total*100) : 0
+  const myM        = g.members.find(m => m.isMe)
+  const totalPages = g.totalPages || 0
+
+  const readingProgressHTML = `
+    <div class="card mb-4">
+      <div class="flex items-center justify-between mb-4">
+        <span class="font-semi">독서 진행률</span>
+        <div class="flex items-center gap-1">
+          <span class="text-xs text-lt">전체</span>
+          <input type="number" min="1" max="9999" value="${totalPages || ''}" placeholder="?"
+            onchange="saveTotalPages(this.value)"
+            style="width:54px;padding:3px 7px;border-radius:7px;border:1.5px solid var(--border);font-size:12px;text-align:center;font-family:inherit;color:var(--text)">
+          <span class="text-xs text-lt">페이지</span>
+        </div>
+      </div>
+      <div style="display:flex;flex-direction:column;gap:14px">
+        ${g.members.map((m, i) => {
+          const color   = MEMBER_PALETTE[i % MEMBER_PALETTE.length]
+          const curPage = m.currentPage || 0
+          const pctR    = totalPages ? Math.min(100, Math.round(curPage / totalPages * 100)) : 0
+          return `
+          <div>
+            <div class="flex items-center gap-2 mb-2">
+              <div class="avatar" style="${avatarStyle(i, m.isMe)}">${m.name[0]}</div>
+              <span class="text-sm flex-1">${m.name}${m.isMe ? ' (나)' : ''}</span>
+              ${totalPages ? `<span class="text-xs" style="color:${color};font-weight:600">${pctR}%</span>` : ''}
+              <div class="flex items-center gap-1">
+                <input type="number" min="0" max="${totalPages || 9999}" value="${curPage || ''}"
+                  placeholder="0"
+                  onchange="savePage('${m.id}', this.value)"
+                  style="width:52px;padding:3px 7px;border-radius:7px;border:1.5px solid var(--border);font-size:12px;text-align:right;font-family:inherit;color:var(--text)">
+                <span class="text-xs text-lt">p</span>
+              </div>
+            </div>
+            <div class="progress-wrap">
+              <div style="height:100%;border-radius:99px;transition:width .4s;width:${pctR}%;background:${color}"></div>
+            </div>
+          </div>`
+        }).join('')}
+      </div>
+    </div>`
+
+  const membersHTML = g.members.map((m, i) => `
+    <li style="padding:8px 0;${i < g.members.length-1 ? 'border-bottom:1px solid rgba(184,212,232,.15)' : ''}">
+      <div class="flex items-center gap-2">
+        <div class="avatar" style="${avatarStyle(i, m.isMe)}">${m.name[0]}</div>
+        <span class="text-sm flex-1 truncate">${m.name}${m.isMe?' (나)':''}</span>
+        <button onclick="toggleComplete('${m.id}', ${!m.hasCompleted})"
+          class="btn btn-sm" style="${m.hasCompleted
+            ? 'background:rgba(197,232,192,.5);color:var(--text);border:1px solid rgba(197,232,192,.8)'
+            : 'background:var(--cream);border:1px solid var(--border);color:var(--text-lt)'
+          }">
+          ${m.hasCompleted ? '✓ 완독' : '읽는 중'}
+        </button>
+      </div>
+      ${m.hasCompleted && m.completionNote ? `
+        <div style="margin:6px 0 2px 36px;padding:6px 10px;background:rgba(245,230,163,.35);border-radius:8px;font-size:12px;color:var(--text-mid);line-height:1.5">
+          💬 ${m.completionNote}
+        </div>` : ''}
+      ${confirmingId === m.id ? `
+        <div style="margin-top:10px;display:flex;flex-direction:column;gap:8px">
+          <input id="note-input" class="input" style="font-size:13px;padding:8px 12px"
+            placeholder="한 줄 소감을 남겨주세요 (선택, 최대 80자)" maxlength="80">
+          <div class="flex gap-2">
+            <button onclick="confirmComplete('${m.id}')" class="btn btn-primary btn-sm flex-1">완독 확인 ✓</button>
+            <button onclick="skipNote('${m.id}')"        class="btn btn-secondary btn-sm shrink-0">소감 없이</button>
+          </div>
+        </div>` : ''}
+    </li>`).join('')
+
+  document.getElementById('root').innerHTML = `
+    <!-- 책 헤더 -->
+    <div class="card mb-4 flex gap-4 items-start" style="border-top:4px solid ${g.coverColor||COVER_COLORS[0].color}">
+      ${bookCoverHTML(g.book.cover_url, g.book.title, 'lg')}
+      <div class="flex-1 min-w-0">
+        <div class="flex items-start justify-between gap-2">
+          <div class="min-w-0">
+            <h1 class="font-serif" style="font-size:19px;font-weight:600;line-height:1.4">${g.name}</h1>
+            <p class="text-mid text-sm mt-1">${g.book.title} · ${g.book.author}</p>
+          </div>
+          <span class="badge shrink-0 ${g.status==='completed'?'badge-green':'badge-blue'}">
+            ${g.status==='completed'?'✓ 완독 완료':'📖 읽는 중'}
+          </span>
+        </div>
+        ${g.description ? `<p class="text-sm text-mid mt-2">${g.description}</p>` : ''}
+        <div class="flex gap-4 mt-3 text-xs text-lt flex-wrap">
+          ${g.status==='reading'?`<span ${dl<=3&&dl>=0?'style="color:#e87070;font-weight:500"':''}>📅 D-${dl>0?dl:dl===0?'오늘':'기한초과'} (${g.deadline})</span>`:''}
+          <span>👥 ${total}명</span>
+          <span>✏️ ${g.quotes.length}개 구절</span>
+          <span>💬 ${g.questions.length}개 질문</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- 독서 진행률 -->
+    ${readingProgressHTML}
+
+    <!-- 완독 현황 -->
+    <div class="card mb-4">
+      <div class="flex justify-between text-sm mb-2">
+        <span class="font-semi">완독 현황</span>
+        <span class="text-mid">${done}/${total}명</span>
+      </div>
+      <div class="progress-wrap">
+        <div class="progress-bar" style="width:${pct}%"></div>
+      </div>
+      <p class="text-xs mt-2 ${all?'':'text-lt'}">
+        ${all
+          ? '<span style="color:var(--blue-dk);font-weight:500">🎉 모든 멤버가 완독했어요! 밑줄 구절을 확인해보세요.</span>'
+          : '전원이 완독하면 서로의 밑줄 구절이 공개됩니다 ✨'}
+      </p>
+    </div>
+
+    <div style="display:grid;grid-template-columns:1fr 200px;gap:16px;align-items:start">
+      <div style="display:flex;flex-direction:column;gap:12px">
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
+          <a href="read.html?id=${g.id}" class="card card-sm text-center" style="text-decoration:none;transition:all .15s"
+            onmouseover="this.style.boxShadow='0 4px 16px rgba(61,53,48,.1)'" onmouseout="this.style.boxShadow=''">
+            <div style="font-size:24px;margin-bottom:6px">✏️</div>
+            <p class="font-semi text-sm">밑줄 구절</p>
+            <p class="text-xs text-lt mt-1">${g.quotes.length}개</p>
+          </a>
+          <a href="discuss.html?id=${g.id}" class="card card-sm text-center" style="text-decoration:none;transition:all .15s"
+            onmouseover="this.style.boxShadow='0 4px 16px rgba(61,53,48,.1)'" onmouseout="this.style.boxShadow=''">
+            <div style="font-size:24px;margin-bottom:6px">💬</div>
+            <p class="font-semi text-sm">토론 질문</p>
+            <p class="text-xs text-lt mt-1">${g.questions.length}개</p>
+          </a>
+        </div>
+
+        <!-- 클라우드 / 내보내기 / 삭제 -->
+        ${DB.getSupabaseUrl() ? `
+        <button onclick="toggleCloud()" id="cloud-btn" class="btn btn-sm flex-1 ${DB.isCloudGroup(g.id)
+          ? 'btn-primary' : 'btn-secondary'}">
+          ${DB.isCloudGroup(g.id) ? '☁️ 동기화 중' : '☁️ 클라우드 공유'}
+        </button>` : ''}
+        <div class="flex gap-2">
+          <button onclick="exportGroup('${g.id}')" class="btn btn-secondary btn-sm flex-1">📤 내보내기</button>
+          <button onclick="deleteGroup()" class="btn btn-sm flex-1" style="background:transparent;border:1px solid var(--border);color:var(--text-lt)">🗑 삭제</button>
+        </div>
+        <div id="share-box" ${DB.isCloudGroup(g.id) ? '' : 'class="hidden"'}>
+          <p class="text-xs text-mid mb-1">아래 링크를 멤버들에게 공유하세요</p>
+          <div class="flex gap-2">
+            <input id="share-url" class="input" style="font-size:12px;padding:6px 10px" readonly
+              value="${(()=>{const u=DB.getSupabaseUrl(),k=DB.getSupabaseKey(),base=location.href.split('?')[0]+'?id='+g.id+'&cloud=1';return u&&k?base+'&sburl='+encodeURIComponent(u)+'&sbkey='+encodeURIComponent(k):base})()}">
+            <button onclick="copyShareUrl()" class="btn btn-secondary btn-sm shrink-0">복사</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- 멤버 -->
+      <div class="card card-sm">
+        <p class="text-sm font-semi mb-2">멤버</p>
+        <ul style="list-style:none">${membersHTML}</ul>
+      </div>
+    </div>`
+}
+
+function savePage(memberId, val) {
+  DB.setMemberPage(id, memberId, val); render()
+}
+function saveTotalPages(val) {
+  DB.setTotalPages(id, val); render()
+}
+
+function toggleComplete(memberId, done) {
+  if (done) {
+    confirmingId = memberId
+    render()
+    setTimeout(() => document.getElementById('note-input')?.focus(), 0)
+  } else {
+    confirmingId = null
+    DB.setMemberComplete(id, memberId, false)
+    render()
+  }
+}
+
+function confirmComplete(memberId) {
+  const note = document.getElementById('note-input')?.value.trim() || null
+  DB.setMemberComplete(id, memberId, true, note)
+  confirmingId = null
+  if (DB.getGroup(id)?.status === 'completed') launchConfetti()
+  render()
+}
+
+function skipNote(memberId) {
+  DB.setMemberComplete(id, memberId, true, null)
+  confirmingId = null
+  if (DB.getGroup(id)?.status === 'completed') launchConfetti()
+  render()
+}
+
+function launchConfetti() {
+  const COLORS = ['#B8D4E8','#F2C4CE','#C5E8C0','#D4C5F0','#F5D5C0','#F5E6A3','#B8E8D4','#E8C5D4','#C0D4F5']
+  const W = window.innerWidth, H = window.innerHeight
+
+  // 캔버스 오버레이
+  const canvas = document.createElement('canvas')
+  canvas.width = W; canvas.height = H
+  canvas.style.cssText = 'position:fixed;inset:0;pointer-events:none;z-index:9990'
+  document.body.appendChild(canvas)
+  const ctx = canvas.getContext('2d')
+
+  // 축하 메시지
+  const msg = document.createElement('div')
+  msg.style.cssText = `position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);
+    z-index:9991;text-align:center;pointer-events:none;transition:opacity .4s`
+  msg.innerHTML = `
+    <div style="background:rgba(255,255,255,.93);border-radius:24px;padding:32px 44px;
+      box-shadow:0 8px 48px rgba(61,53,48,.15)">
+      <div style="font-size:52px;margin-bottom:12px">🎉</div>
+      <div style="font-family:'Noto Serif KR',serif;font-size:22px;font-weight:600;color:#3D3530">전원 완독!</div>
+      <div style="font-size:14px;color:#6B5E57;margin-top:6px">서로의 밑줄 구절이 공개됐어요 ✨</div>
+    </div>`
+  document.body.appendChild(msg)
+
+  // 파티클 생성 — 화면 상단 여러 지점에서 쏟아짐
+  const particles = Array.from({length: 160}, () => ({
+    x:     Math.random() * W,
+    y:     -Math.random() * H * 0.4,
+    w:     Math.random() * 10 + 5,
+    h:     Math.random() * 6  + 3,
+    color: COLORS[Math.floor(Math.random() * COLORS.length)],
+    vx:    (Math.random() - 0.5) * 3,
+    vy:    Math.random() * 3 + 1.5,
+    angle: Math.random() * Math.PI * 2,
+    spin:  (Math.random() - 0.5) * 0.18,
+    shape: Math.random() > 0.4 ? 'rect' : 'circle',
+  }))
+
+  const DURATION = 4200
+  let start = null
+
+  function frame(ts) {
+    if (!start) start = ts
+    const p = Math.min((ts - start) / DURATION, 1)
+    ctx.clearRect(0, 0, W, H)
+
+    for (const c of particles) {
+      c.x     += c.vx
+      c.y     += c.vy
+      c.vy    += 0.12   // 중력
+      c.vx    *= 0.995  // 공기 저항
+      c.angle += c.spin
+
+      if (c.y > H + 20) continue
+
+      const alpha = p > 0.65 ? (1 - (p - 0.65) / 0.35) : 1
+      ctx.save()
+      ctx.globalAlpha = alpha
+      ctx.translate(c.x, c.y)
+      ctx.rotate(c.angle)
+      ctx.fillStyle = c.color
+
+      if (c.shape === 'rect') {
+        ctx.fillRect(-c.w / 2, -c.h / 2, c.w, c.h)
+      } else {
+        ctx.beginPath()
+        ctx.arc(0, 0, c.w / 2, 0, Math.PI * 2)
+        ctx.fill()
+      }
+      ctx.restore()
+    }
+
+    // 메시지 페이드 아웃
+    if (p > 0.7) msg.style.opacity = 1 - (p - 0.7) / 0.3
+
+    if (p < 1) requestAnimationFrame(frame)
+    else { canvas.remove(); msg.remove() }
+  }
+
+  requestAnimationFrame(frame)
+}
+
+function deleteGroup() {
+  const g = DB.getGroup(id)
+  if (!confirm(`"${g?.name}" 그룹을 삭제할까요?\n구절과 질문도 모두 삭제됩니다.`)) return
+  DB.deleteGroup(id)
+  location.href = 'dashboard.html'
+}
+
+// 초대 링크로 진입 시 클라우드에서 pull
+async function initCloud() {
+  const isCloud = param('cloud') === '1'
+  // 공유 링크로 진입 시 Supabase 설정 자동 저장
+  const sburl = param('sburl'), sbkey = param('sbkey')
+  if (sburl && sbkey && !DB.getSupabaseUrl()) DB.setSupabase(sburl, sbkey)
+  if (isCloud || DB.isCloudGroup(id)) {
+    const g = await cloudPull(id).catch(() => null)
+    if (g) { DB.setCloudGroup(id, true); toast('☁️ 최신 데이터를 불러왔어요') }
+    cloudSubscribe(id, () => { toast('☁️ 멤버가 업데이트했어요'); render() })
+  }
+  render()
+}
+
+async function toggleCloud() {
+  const isCloud = DB.isCloudGroup(id)
+  if (isCloud) {
+    cloudUnsubscribe(); DB.setCloudGroup(id, false)
+    document.getElementById('share-box')?.classList.add('hidden')
+    toast('클라우드 공유를 중단했어요'); render(); return
+  }
+  const btn = document.getElementById('cloud-btn')
+  if (btn) { btn.disabled = true; btn.textContent = '업로드 중...' }
+  const ok = await cloudPush(id).catch(() => false)
+  if (!ok) { toast('업로드 실패. 설정의 Supabase 연결을 확인해주세요.'); render(); return }
+  DB.setCloudGroup(id, true)
+  cloudSubscribe(id, () => { toast('☁️ 멤버가 업데이트했어요'); render() })
+  render()
+  toast('☁️ 클라우드 공유 시작! 링크를 멤버에게 보내세요')
+}
+
+async function copyShareUrl() {
+  const url = document.getElementById('share-url')?.value
+  if (!url) return
+  try {
+    await navigator.clipboard.writeText(url)
+    toast('복사됐어요 ✓')
+  } catch {
+    const el = document.getElementById('share-url')
+    el.select(); el.setSelectionRange(0, 9999)
+    document.execCommand('copy')
+    toast('복사됐어요 ✓')
+  }
+}
+
+initCloud()
+</script>
+</body></html>

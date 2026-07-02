@@ -1,0 +1,39 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>시작하기 — 교환독서</title>
+<link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+<div class="page-sm" style="padding-top:80px">
+  <div class="text-center mb-8">
+    <h1 class="font-serif" style="font-size:28px;font-weight:600;margin-bottom:8px">교환독서</h1>
+    <p class="text-mid">함께 읽고, 함께 나누다</p>
+  </div>
+  <div class="card">
+    <p class="font-semi mb-1">닉네임을 정해주세요</p>
+    <p class="text-sm text-mid mb-5">구절에 표시될 이름이에요. 나중에 설정에서 바꿀 수 있어요.</p>
+    <form id="form" class="fields">
+      <div class="field">
+        <input id="name" class="input" type="text" placeholder="예: 독서왕 김씨" maxlength="20" required autofocus style="font-size:16px">
+      </div>
+      <button type="submit" class="btn btn-primary btn-block" style="padding:13px;font-size:15px">
+        시작하기 →
+      </button>
+    </form>
+  </div>
+</div>
+<script src="js/app.js"></script>
+<script>
+if (DB.getMe()) location.replace('dashboard.html')
+
+document.getElementById('form').addEventListener('submit', e => {
+  e.preventDefault()
+  const name = document.getElementById('name').value.trim()
+  if (!name) return
+  DB.setMe({ name })
+  location.href = 'dashboard.html'
+})
+</script>
+</body></html>

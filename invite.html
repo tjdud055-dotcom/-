@@ -1,0 +1,92 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>그룹 참여 — 교환독서</title>
+<link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+<nav class="nav"><div class="nav-inner"></div></nav>
+<div class="page-sm" style="text-align:center">
+  <div id="loading" class="spinner"></div>
+  <div id="content" class="hidden"></div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="js/app.js"></script>
+<script>
+const sb = getSB();
+
+async function joinGroup(groupId, userId) {
+  const btn = document.getElementById('join-btn');
+  btn.disabled = true; btn.textContent = '참여 중...';
+  const { error } = await sb.from('group_members').insert({ group_id: groupId, user_id: userId });
+  if (error) {
+    btn.disabled = false; btn.textContent = '이 그룹에 참여하기 📖';
+    toast('참여 실패: ' + error.message);
+  } else {
+    location.href = `group.html?id=${groupId}`;
+  }
+}
+
+(async () => {
+  const code = param('code');
+  if (!code) { location.href = 'index.html'; return; }
+
+  const user = await getUser();
+  renderNav();
+
+  const { data: g } = await sb.from('groups')
+    .select('*, books(*), group_members(user_id)')
+    .eq('invite_code', code).single();
+
+  document.getElementById('loading').classList.add('hidden');
+  document.getElementById('content').classList.remove('hidden');
+
+  if (!g) {
+    document.getElementById('content').innerHTML = `
+      <div class="empty">
+        <div class="empty-icon">🔗</div>
+        <p class="font-semi" style="font-size:17px;margin-bottom:8px">유효하지 않은 초대 링크</p>
+        <p class="text-mid text-sm">초대 링크를 다시 확인해주세요.</p>
+        <a href="index.html" class="btn btn-secondary mt-4 btn-sm">홈으로</a>
+      </div>`;
+    return;
+  }
+
+  const isMember = user && g.group_members.some(m => m.user_id === user.id);
+  if (isMember) { location.href = `group.html?id=${g.id}`; return; }
+
+  const isFull = g.group_members.length >= g.max_members;
+  const isDone = g.status === 'completed';
+
+  document.getElementById('content').innerHTML = `
+    <div style="margin-bottom:24px">
+      ${bookCoverHTML(g.books.cover_url, g.books.title, 'lg')}
+    </div>
+    <h1 class="font-serif" style="font-size:22px;font-weight:600;margin-bottom:6px">${g.name}</h1>
+    <p class="text-mid">${g.books.title} · ${g.books.author}</p>
+    ${g.description ? `<p class="text-sm text-lt mt-2">${g.description}</p>` : ''}
+    <div class="flex gap-5 justify-center mt-4 mb-6 text-sm text-mid">
+      <span>📅 완독 기한 ${g.deadline}</span>
+      <span>👥 ${g.group_members.length}/${g.max_members}명</span>
+    </div>
+    ${isFull ? `
+      <div class="alert alert-pink">😢 그룹이 꽉 찼어요. 다른 그룹을 찾아보세요.</div>
+      <a href="explore.html" class="btn btn-secondary btn-block mt-3">다른 그룹 보기</a>
+    ` : isDone ? `
+      <div class="alert alert-yellow">이미 완독 완료된 그룹이에요.</div>
+    ` : !user ? `
+      <div class="card mt-2">
+        <p class="text-mid mb-4">참여하려면 먼저 로그인해주세요.</p>
+        <a href="auth.html" class="btn btn-primary btn-block">로그인 / 회원가입</a>
+      </div>
+    ` : `
+      <button id="join-btn" class="btn btn-primary btn-block" style="padding:14px;font-size:15px"
+        onclick="joinGroup('${g.id}','${user.id}')">
+        이 그룹에 참여하기 📖
+      </button>
+    `}`;
+})();
+</script>
+</body></html>

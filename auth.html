@@ -1,0 +1,105 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>로그인 — 교환독서</title>
+<link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+<div class="page-sm" style="padding-top:60px">
+  <div class="text-center mb-6">
+    <a href="index.html" class="font-serif" style="font-size:22px;font-weight:600;color:var(--text);text-decoration:none">교환독서</a>
+  </div>
+
+  <div class="card">
+    <!-- Tab -->
+    <div style="display:flex;background:var(--cream);border-radius:10px;padding:4px;margin-bottom:24px">
+      <button class="tab-btn active" data-mode="login" style="flex:1;padding:8px;border:none;border-radius:8px;background:#fff;font-family:inherit;font-size:14px;font-weight:500;cursor:pointer;transition:all .15s">로그인</button>
+      <button class="tab-btn" data-mode="signup" style="flex:1;padding:8px;border:none;border-radius:8px;background:transparent;font-family:inherit;font-size:14px;font-weight:500;cursor:pointer;transition:all .15s;color:var(--text-lt)">회원가입</button>
+    </div>
+
+    <div id="msg" class="hidden mb-4 text-sm"></div>
+
+    <form id="auth-form" class="fields">
+      <div id="username-field" class="field hidden">
+        <label class="label">닉네임</label>
+        <input id="username" class="input" type="text" placeholder="독서 닉네임" minlength="2" maxlength="20">
+      </div>
+      <div class="field">
+        <label class="label">이메일</label>
+        <input id="email" class="input" type="email" placeholder="email@example.com" required>
+      </div>
+      <div class="field">
+        <label class="label">비밀번호</label>
+        <input id="password" class="input" type="password" placeholder="6자 이상" required minlength="6">
+      </div>
+      <button type="submit" id="auth-btn" class="btn btn-primary btn-block">로그인</button>
+    </form>
+  </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="js/app.js"></script>
+<script>
+let mode = 'login';
+const sb = getSB();
+if (!sb) throw 0;
+
+// 이미 로그인된 경우
+(async () => {
+  const user = await getUser();
+  if (user) location.href = 'dashboard.html';
+})();
+
+// 탭 전환
+document.querySelectorAll('.tab-btn').forEach(btn => {
+  btn.addEventListener('click', () => {
+    mode = btn.dataset.mode;
+    document.querySelectorAll('.tab-btn').forEach(b => {
+      b.style.background = b === btn ? '#fff' : 'transparent';
+      b.style.color = b === btn ? 'var(--text)' : 'var(--text-lt)';
+      b.style.boxShadow = b === btn ? '0 1px 4px rgba(0,0,0,.08)' : 'none';
+    });
+    document.getElementById('username-field').classList.toggle('hidden', mode !== 'signup');
+    document.getElementById('auth-btn').textContent = mode === 'login' ? '로그인' : '가입하기';
+    document.getElementById('username').required = mode === 'signup';
+    setMsg('', '');
+  });
+});
+
+function setMsg(text, type) {
+  const el = document.getElementById('msg');
+  el.textContent = text;
+  el.className = text ? `alert alert-${type} mb-4 text-sm` : 'hidden';
+}
+
+document.getElementById('auth-form').addEventListener('submit', async (e) => {
+  e.preventDefault();
+  const btn = document.getElementById('auth-btn');
+  btn.disabled = true; btn.textContent = '처리 중...';
+  setMsg('', '');
+
+  const email    = document.getElementById('email').value.trim();
+  const password = document.getElementById('password').value;
+  const username = document.getElementById('username').value.trim();
+
+  if (mode === 'signup') {
+    const { error } = await sb.auth.signUp({ email, password, options: { data: { username } } });
+    if (error) {
+      setMsg('가입 실패: ' + error.message, 'pink');
+    } else {
+      setMsg('이메일을 확인해주세요. 인증 링크를 보내드렸습니다.', 'green');
+    }
+  } else {
+    const { error } = await sb.auth.signInWithPassword({ email, password });
+    if (error) {
+      setMsg('이메일 또는 비밀번호가 올바르지 않습니다.', 'pink');
+    } else {
+      location.href = 'dashboard.html';
+    }
+  }
+  btn.disabled = false;
+  btn.textContent = mode === 'login' ? '로그인' : '가입하기';
+});
+</script>
+</body></html>

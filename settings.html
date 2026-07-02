@@ -1,0 +1,244 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>설정 — 교환독서</title>
+<link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+<nav class="nav"><div class="nav-inner"></div></nav>
+<div class="page-sm">
+  <h1 class="font-serif" style="font-size:22px;font-weight:600;margin-bottom:24px">설정</h1>
+
+  <!-- 프로필 -->
+  <div class="card mb-4">
+    <p class="font-semi mb-3">내 정보</p>
+    <div class="fields">
+      <div class="field">
+        <label class="label">닉네임</label>
+        <input id="my-name" class="input" type="text" maxlength="20" required>
+      </div>
+      <button onclick="saveName()" class="btn btn-primary btn-sm" style="align-self:flex-start">저장</button>
+    </div>
+  </div>
+
+  <!-- Supabase -->
+  <div class="card mb-4">
+    <p class="font-semi mb-1">클라우드 동기화 (Supabase)</p>
+    <p class="text-sm text-mid mb-3">
+      Supabase 프로젝트 URL과 anon key를 등록하면 그룹을 클라우드에 공유하고 실시간 동기화할 수 있어요.
+    </p>
+    <div class="fields">
+      <div class="field">
+        <label class="label">Project URL</label>
+        <input id="sb-url" class="input" type="text" placeholder="https://xxxx.supabase.co">
+      </div>
+      <div class="field">
+        <label class="label">Anon Key</label>
+        <input id="sb-key" class="input" type="password" placeholder="eyJ...">
+      </div>
+      <div class="flex gap-2">
+        <button onclick="saveSupabase()" class="btn btn-primary btn-sm">저장</button>
+        <button onclick="testSupabase()" class="btn btn-secondary btn-sm">연결 테스트</button>
+      </div>
+      <p id="sb-status" class="text-xs text-lt"></p>
+    </div>
+  </div>
+
+  <!-- 카카오 API 키 -->
+  <div class="card mb-4">
+    <p class="font-semi mb-1">책 검색 (카카오)</p>
+    <p class="text-sm text-mid mb-3">
+      카카오 REST API 키를 등록하면 한국 책을 훨씬 정확하게 검색할 수 있어요.<br>
+      키 없이도 Google Books로 검색되지만 표지·정확도가 낮을 수 있어요.
+    </p>
+    <div class="fields">
+      <div class="field">
+        <label class="label">Kakao REST API Key</label>
+        <input id="kakao-key" class="input" type="password" placeholder="카카오 REST API 키">
+      </div>
+      <div class="flex gap-2">
+        <button onclick="saveKakaoKey()" class="btn btn-primary btn-sm">저장</button>
+        <button onclick="clearKakaoKey()" class="btn btn-secondary btn-sm">삭제</button>
+      </div>
+      <p id="kakao-key-status" class="text-xs text-lt"></p>
+    </div>
+  </div>
+
+  <!-- Anthropic API 키 -->
+  <div class="card mb-4">
+    <p class="font-semi mb-1">AI 토론 질문 (선택)</p>
+    <p class="text-sm text-mid mb-3">
+      Anthropic API 키를 등록하면 그룹을 만들 때 AI가 책에 맞는 토론 질문을 자동 생성해줘요.<br>
+      키는 이 기기의 localStorage에만 저장되며 외부로 전송되지 않습니다.
+    </p>
+    <div class="fields">
+      <div class="field">
+        <label class="label">Anthropic API Key</label>
+        <input id="api-key" class="input" type="password" placeholder="sk-ant-...">
+      </div>
+      <div class="flex gap-2">
+        <button onclick="saveKey()" class="btn btn-primary btn-sm">저장</button>
+        <button onclick="clearKey()" class="btn btn-secondary btn-sm">삭제</button>
+      </div>
+      <p id="key-status" class="text-xs text-lt"></p>
+    </div>
+  </div>
+
+  <!-- 데이터 -->
+  <div class="card mb-4">
+    <p class="font-semi mb-3">데이터</p>
+    <div style="display:flex;flex-direction:column;gap:10px">
+      <div class="flex items-center justify-between">
+        <div>
+          <p class="text-sm font-semi">전체 데이터 내보내기</p>
+          <p class="text-xs text-lt">모든 그룹 데이터를 JSON 파일로 저장</p>
+        </div>
+        <button onclick="exportAll()" class="btn btn-secondary btn-sm shrink-0">내보내기</button>
+      </div>
+      <div style="height:1px;background:var(--border)"></div>
+      <div class="flex items-center justify-between">
+        <div>
+          <p class="text-sm font-semi">그룹 가져오기</p>
+          <p class="text-xs text-lt">다른 기기에서 내보낸 그룹 JSON 불러오기</p>
+        </div>
+        <label class="btn btn-secondary btn-sm shrink-0" style="cursor:pointer">
+          가져오기
+          <input type="file" accept=".json" id="import-all" class="hidden">
+        </label>
+      </div>
+      <div style="height:1px;background:var(--border)"></div>
+      <div class="flex items-center justify-between">
+        <div>
+          <p class="text-sm font-semi" style="color:#e87070">모든 데이터 삭제</p>
+          <p class="text-xs text-lt">되돌릴 수 없습니다</p>
+        </div>
+        <button onclick="clearAll()" class="btn btn-sm shrink-0" style="background:rgba(242,100,100,.1);border:1px solid rgba(242,100,100,.3);color:#e87070">삭제</button>
+      </div>
+    </div>
+  </div>
+
+  <p class="text-xs text-lt text-center">
+    모든 데이터는 이 기기의 브라우저에만 저장됩니다.<br>
+    브라우저 데이터 삭제 시 데이터가 사라질 수 있으니 주기적으로 백업하세요.
+  </p>
+</div>
+
+<script src="js/app.js"></script>
+<script>
+const me = requireProfile(); if (!me) throw 0
+renderNav('settings')
+
+document.getElementById('my-name').value = me.name
+const key = DB.getApiKey()
+if (key) {
+  document.getElementById('api-key').value = key
+  document.getElementById('key-status').textContent = '✓ API 키가 등록되어 있어요.'
+}
+// Supabase
+const sbUrl = DB.getSupabaseUrl(), sbKey = DB.getSupabaseKey()
+if (sbUrl) document.getElementById('sb-url').value = sbUrl
+if (sbKey) document.getElementById('sb-key').value = sbKey
+if (sbUrl && sbKey) document.getElementById('sb-status').textContent = '✓ Supabase 설정이 등록되어 있어요.'
+
+async function saveSupabase() {
+  const url = document.getElementById('sb-url').value.trim()
+  const key = document.getElementById('sb-key').value.trim()
+  DB.setSupabase(url, key)
+  document.getElementById('sb-status').textContent = url && key ? '✓ 저장됐어요.' : '설정이 삭제됐어요.'
+  toast('Supabase 설정이 저장됐어요 ✓')
+}
+async function testSupabase() {
+  const st = document.getElementById('sb-status')
+  st.textContent = '연결 확인 중...'
+  try {
+    const sb = await _getSB()
+    if (!sb) { st.textContent = '⚠ URL과 키를 먼저 저장해주세요.'; return }
+    const { error } = await sb.from('gd_groups').select('id').limit(1)
+    st.textContent = error ? `⚠ 연결 실패: ${error.message}` : '✓ 연결 성공!'
+  } catch(e) { st.textContent = '⚠ 연결 실패: ' + e.message }
+}
+
+const kakaoKey = DB.getKakaoKey()
+if (kakaoKey) {
+  document.getElementById('kakao-key').value = kakaoKey
+  document.getElementById('kakao-key-status').textContent = '✓ 카카오 키가 등록되어 있어요.'
+}
+
+function saveKakaoKey() {
+  const k = document.getElementById('kakao-key').value.trim()
+  DB.setKakaoKey(k)
+  document.getElementById('kakao-key-status').textContent = k ? '✓ 저장됐어요.' : '키가 삭제됐어요.'
+  toast('카카오 API 키가 저장됐어요 ✓')
+}
+function clearKakaoKey() {
+  DB.setKakaoKey('')
+  document.getElementById('kakao-key').value = ''
+  document.getElementById('kakao-key-status').textContent = '키가 삭제됐어요.'
+  toast('카카오 API 키가 삭제됐어요.')
+}
+
+function saveName() {
+  const name = document.getElementById('my-name').value.trim()
+  if (!name) { toast('닉네임을 입력해주세요.'); return }
+  DB.setMe({ ...DB.getMe(), name })
+  toast('저장됐어요 ✓')
+}
+
+function saveKey() {
+  const k = document.getElementById('api-key').value.trim()
+  DB.setApiKey(k)
+  document.getElementById('key-status').textContent = k ? '✓ 저장됐어요.' : '키가 삭제됐어요.'
+  toast('API 키가 저장됐어요 ✓')
+}
+
+function clearKey() {
+  DB.setApiKey('')
+  document.getElementById('api-key').value = ''
+  document.getElementById('key-status').textContent = '키가 삭제됐어요.'
+  toast('API 키가 삭제됐어요.')
+}
+
+function exportAll() {
+  const data = {
+    profile: DB.getMe(),
+    groups: DB.getGroups(),
+    exportedAt: new Date().toISOString(),
+  }
+  const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' })
+  const a = document.createElement('a')
+  a.href = URL.createObjectURL(blob)
+  a.download = `교환독서-백업-${new Date().toLocaleDateString('ko-KR').replace(/\./g,'-').trim()}.json`
+  a.click()
+  toast('내보내기 완료 ✓')
+}
+
+document.getElementById('import-all').addEventListener('change', async e => {
+  const file = e.target.files[0]; if (!file) return
+  try {
+    const text = await file.text()
+    const data = JSON.parse(text)
+    // 단일 그룹 파일
+    if (data.id && data.book) {
+      DB.saveGroup(data)
+      toast(`"${data.name}" 그룹을 가져왔어요 ✓`)
+    }
+    // 전체 백업 파일
+    else if (data.groups) {
+      data.groups.forEach(g => DB.saveGroup(g))
+      toast(`${data.groups.length}개 그룹을 가져왔어요 ✓`)
+    }
+    else throw new Error('올바른 파일이 아닙니다.')
+  } catch(ex) { toast('가져오기 실패: ' + ex.message) }
+  e.target.value = ''
+})
+
+function clearAll() {
+  if (!confirm('정말 모든 데이터를 삭제할까요?\n이 작업은 되돌릴 수 없습니다.')) return
+  localStorage.removeItem('gd_groups')
+  localStorage.removeItem('gd_me')
+  localStorage.removeItem('gd_settings')
+  location.href = 'profile.html'
+}
+</script>
+</body></html>

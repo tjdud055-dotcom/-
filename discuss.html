@@ -1,0 +1,127 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>토론 질문 — 교환독서</title>
+<link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+<nav class="nav"><div class="nav-inner"></div></nav>
+<div class="page-md" id="root"></div>
+
+<script src="js/app.js"></script>
+<script>
+const me = requireProfile(); if (!me) throw 0
+const gid = param('id')
+if (!gid) { location.href = 'dashboard.html'; throw 0 }
+let showForm = false, generating = false
+
+function render() {
+  const g = DB.getGroup(gid)
+  if (!g) { location.href = 'dashboard.html'; return }
+  renderNav()
+  const hasKey = !!DB.getApiKey()
+  const ai     = g.questions.filter(q => q.isAI)
+  const manual = g.questions.filter(q => !q.isAI)
+
+  const aiHTML = ai.length
+    ? ai.map((q,i) => `
+        <div class="card" style="background:rgba(212,197,240,.1);border-color:rgba(212,197,240,.35)">
+          <div class="flex gap-3 items-start">
+            <span class="q-num">Q${i+1}</span>
+            <p style="padding-top:2px;line-height:1.7">${q.content}</p>
+          </div>
+        </div>`).join('')
+    : `<div class="card text-center" style="padding:28px;color:var(--text-lt)">
+        <p style="font-size:22px;margin-bottom:8px">✨</p>
+        ${hasKey
+          ? `<p class="text-sm mb-3">AI 토론 질문을 생성해보세요.</p>
+             <button onclick="genAI()" id="gen-btn" class="btn btn-sm" style="background:rgba(212,197,240,.4);border:none">AI 질문 생성하기</button>`
+          : `<p class="text-sm">설정에서 Anthropic API 키를 등록하면<br>AI가 토론 질문을 자동으로 만들어줘요.</p>
+             <a href="settings.html" class="btn btn-sm btn-secondary mt-3">설정으로 가기</a>`}
+       </div>`
+
+  const manualHTML = manual.length
+    ? manual.map((q,i) => `
+        <div class="card">
+          <div class="flex gap-3 items-start">
+            <span class="q-num" style="color:var(--peach)">Q${i+1}</span>
+            <div class="flex-1">
+              <p style="line-height:1.7">${q.content}</p>
+              <button onclick="delQ('${q.id}')" class="text-xs text-lt mt-2" style="background:none;border:none;cursor:pointer;padding:0">삭제</button>
+            </div>
+          </div>
+        </div>`).join('')
+    : `<p class="text-sm text-lt text-center" style="padding:12px 0">아직 등록된 질문이 없어요.</p>`
+
+  const formHTML = showForm ? `
+    <div class="card" style="border:2px solid rgba(245,213,192,.5)">
+      <p class="font-semi text-sm mb-3">질문 추가</p>
+      <textarea id="q-input" class="textarea" style="min-height:76px" placeholder="멤버들과 나누고 싶은 질문을 작성해주세요..." maxlength="300"></textarea>
+      <div class="flex gap-2 justify-end mt-3">
+        <button onclick="cancelForm()" class="btn btn-secondary btn-sm">취소</button>
+        <button onclick="addQ()" class="btn btn-primary btn-sm">등록</button>
+      </div>
+    </div>` : `<button class="btn-dashed" onclick="openForm()">+ 질문 추가하기</button>`
+
+  document.getElementById('root').innerHTML = `
+    <div class="flex items-center gap-2 mb-2 text-sm">
+      <a href="group.html?id=${gid}" class="text-lt" style="text-decoration:none">← 그룹으로</a>
+      <span class="text-lt">/</span>
+      <span class="font-semi font-serif" style="font-size:16px">토론 질문</span>
+    </div>
+    <p class="text-sm text-mid mb-6">${g.book.title} · ${g.book.author}</p>
+
+    <div class="mb-7">
+      <div class="section-title mb-4">
+        <span class="badge badge-purple">✨ AI 생성</span>
+        <span class="text-lt">(${ai.length})</span>
+      </div>
+      <div style="display:flex;flex-direction:column;gap:10px">${aiHTML}</div>
+    </div>
+
+    <div class="mb-5">
+      <div class="section-title mb-4">
+        <span class="badge badge-peach">👥 멤버 질문</span>
+        <span class="text-lt">(${manual.length})</span>
+      </div>
+      <div style="display:flex;flex-direction:column;gap:10px;margin-bottom:14px">${manualHTML}</div>
+      ${formHTML}
+    </div>`
+
+  if (generating) {
+    const btn = document.getElementById('gen-btn')
+    if (btn) { btn.disabled = true; btn.textContent = 'AI 생성 중...' }
+  }
+}
+
+function openForm()  { showForm = true;  render() }
+function cancelForm(){ showForm = false; render() }
+
+function addQ() {
+  const content = document.getElementById('q-input')?.value.trim()
+  if (!content) { toast('질문을 입력해주세요.'); return }
+  DB.addQuestion(gid, { id: uid(), content, isAI: false, createdAt: new Date().toISOString() })
+  toast('질문이 등록됐어요 ✓'); showForm = false; render()
+}
+
+function delQ(qid) {
+  if (!confirm('이 질문을 삭제할까요?')) return
+  const g = DB.getGroup(gid); if (!g) return
+  g.questions = g.questions.filter(q => q.id !== qid)
+  DB.saveGroup(g); render()
+}
+
+async function genAI() {
+  const g = DB.getGroup(gid); if (!g) return
+  generating = true; render()
+  const ok = await generateAIQuestions(gid, g.book.title, g.book.author).catch(() => false)
+  generating = false
+  if (ok) toast('AI 질문이 생성됐어요 ✓')
+  else    toast('AI 질문 생성 실패. API 키를 확인해주세요.')
+  render()
+}
+
+render()
+</script>
+</body></html>

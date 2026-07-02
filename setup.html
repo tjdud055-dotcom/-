@@ -1,0 +1,74 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>초기 설정 — 교환독서</title>
+<link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+<div class="page-sm" style="padding-top:60px">
+  <div class="text-center mb-6">
+    <a href="index.html" class="font-serif" style="font-size:22px;font-weight:600;color:var(--text);text-decoration:none">교환독서</a>
+    <p class="text-mid mt-2 text-sm">시작 전에 Supabase 프로젝트를 연결해주세요.</p>
+  </div>
+
+  <div class="card">
+    <div class="alert alert-yellow mb-4">
+      <b>Supabase 프로젝트가 필요합니다</b><br>
+      <span class="text-sm">app.supabase.com → 프로젝트 생성 → Settings → API에서 확인하세요.</span>
+    </div>
+
+    <form id="setup-form" class="fields">
+      <div class="field">
+        <label class="label">Supabase Project URL</label>
+        <input id="sb-url" class="input" type="url" placeholder="https://xxxxx.supabase.co" required>
+      </div>
+      <div class="field">
+        <label class="label">Supabase Anon Key</label>
+        <input id="sb-key" class="input" type="text" placeholder="eyJhbGci..." required>
+      </div>
+      <div id="setup-err" class="alert alert-pink hidden text-sm"></div>
+      <button type="submit" class="btn btn-primary btn-block" id="setup-btn">연결하기</button>
+    </form>
+
+    <div style="margin-top:20px;padding-top:20px;border-top:1px solid var(--border)">
+      <p class="text-sm text-mid mb-2"><b>DB 마이그레이션도 필요합니다</b></p>
+      <p class="text-sm text-lt">Supabase → SQL Editor에서 <code>supabase/migrations/001_initial.sql</code> 파일 내용을 붙여넣고 실행하세요.</p>
+    </div>
+  </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="js/app.js"></script>
+<script>
+document.getElementById('setup-form').addEventListener('submit', async (e) => {
+  e.preventDefault();
+  const url = document.getElementById('sb-url').value.trim();
+  const key = document.getElementById('sb-key').value.trim();
+  const btn = document.getElementById('setup-btn');
+  const err = document.getElementById('setup-err');
+
+  btn.disabled = true; btn.textContent = '연결 확인 중...';
+  err.classList.add('hidden');
+
+  try {
+    const sb = window.supabase.createClient(url, key);
+    const { error } = await sb.from('profiles').select('id').limit(1);
+    if (error && error.code !== 'PGRST116') throw error;
+    localStorage.setItem('sb_url', url);
+    localStorage.setItem('sb_key', key);
+    location.href = 'auth.html';
+  } catch (ex) {
+    err.textContent = '연결 실패: URL과 키를 다시 확인해주세요. (' + (ex.message || ex) + ')';
+    err.classList.remove('hidden');
+    btn.disabled = false; btn.textContent = '연결하기';
+  }
+});
+
+// 이미 설정된 경우
+const url = localStorage.getItem('sb_url');
+const key = localStorage.getItem('sb_key');
+if (url) document.getElementById('sb-url').value = url;
+if (key) document.getElementById('sb-key').value = key;
+</script>
+</body></html>

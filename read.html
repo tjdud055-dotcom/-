@@ -1,0 +1,284 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>밑줄 구절 — 교환독서</title>
+<link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+<nav class="nav"><div class="nav-inner"></div></nav>
+<div class="page-md" id="root"></div>
+
+<script src="js/app.js"></script>
+<script>
+const me = requireProfile(); if (!me) throw 0
+const gid = param('id')
+if (!gid) { location.href = 'dashboard.html'; throw 0 }
+
+let showForm = false, editId = null, replyOpenId = null, bookmarkOnly = false
+
+function quoteCard(q, memberName, memberIdx, isMe, blur, samePageNames = []) {
+  const avStyle = blur ? 'background:#e0dcd8' : avatarStyle(memberIdx, isMe)
+  const replies = q.replies || []
+
+  const repliesHTML = replies.length ? `
+    <div style="margin-top:12px;padding-top:10px;border-top:1px solid var(--border);display:flex;flex-direction:column;gap:8px">
+      ${replies.map(r => `
+        <div class="flex gap-2 items-start">
+          <div class="avatar" style="width:22px;height:22px;font-size:10px;flex-shrink:0;${avatarStyle(r.memberIdx ?? 0, false)}">
+            ${r.memberName[0]}
+          </div>
+          <div class="flex-1 min-w-0">
+            <span class="text-xs" style="font-weight:600">${r.memberName}</span>
+            <span class="text-xs text-lt"> · ${fmtDate(r.createdAt)}</span>
+            <p class="text-sm" style="margin-top:2px;line-height:1.5">${r.content}</p>
+          </div>
+          ${r.isMe ? `<button onclick="delReply('${q.id}','${r.id}')" style="background:none;border:none;cursor:pointer;color:var(--text-lt);font-size:18px;line-height:1;flex-shrink:0;padding:0">×</button>` : ''}
+        </div>`).join('')}
+    </div>` : ''
+
+  const replySection = blur ? '' : (replyOpenId === q.id
+    ? `<div class="flex gap-2 mt-3">
+        <input id="ri-${q.id}" class="input flex-1" style="font-size:13px;padding:7px 10px" placeholder="댓글을 입력하세요..." maxlength="200">
+        <button onclick="submitReply('${q.id}')" class="btn btn-primary btn-sm shrink-0">등록</button>
+        <button onclick="closeReply()" class="btn btn-secondary btn-sm shrink-0">취소</button>
+       </div>`
+    : `<button onclick="openReply('${q.id}')" class="text-xs text-lt mt-3" style="background:none;border:none;cursor:pointer;padding:0">
+        💬 ${replies.length ? `댓글 ${replies.length}` : '댓글 달기'}
+       </button>`)
+
+  return `
+    <div class="card" style="${isMe?'background:rgba(184,212,232,.1);border-color:rgba(184,212,232,.4)':''}">
+      <div class="flex items-center gap-2 mb-3">
+        <div class="avatar" style="${avStyle}">
+          ${blur ? '?' : memberName[0]}
+        </div>
+        <span class="text-xs text-mid">${blur ? '🔒 비공개' : memberName}</span>
+        ${q.pageNumber && !blur ? `<span class="text-xs text-lt">p.${q.pageNumber}</span>` : ''}
+        <span class="text-xs text-lt" style="margin-left:auto">${fmtDate(q.createdAt)}</span>
+        ${!isMe && !blur ? `<button onclick="toggleBM('${q.id}')" title="북마크"
+          style="background:none;border:none;cursor:pointer;font-size:17px;padding:0;line-height:1;margin-left:4px">
+          ${DB.isBookmarked(q.id) ? '⭐' : '☆'}
+        </button>` : ''}
+      </div>
+      ${samePageNames.length && !blur ? `<div style="margin-bottom:10px;padding:5px 12px;border-radius:8px;background:rgba(245,213,192,.35);border:1px solid rgba(245,213,192,.7);font-size:12px;color:var(--text-mid)">${samePageNames.map(n => n+'님').join(', ')}과 같은 부분에서 멈췄어요 ☺️</div>` : ''}
+      <div style="position:relative">
+        <blockquote class="quote-content ${blur?'quote-blur':''}">${blur ? '이 구절은 해당 멤버가 완독 후 공개됩니다.' : q.content}</blockquote>
+        ${q.comment && !blur ? `<p class="quote-comment">${q.comment}</p>` : ''}
+        ${blur ? `<div style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center">
+          <span style="background:rgba(255,255,255,.75);backdrop-filter:blur(4px);border-radius:8px;padding:5px 12px;font-size:12px;color:var(--text-mid)">완독 후 공개</span>
+        </div>` : ''}
+      </div>
+      ${isMe ? `<div class="flex gap-2 mt-3">
+        <button onclick="editQuote('${q.id}')" class="text-xs text-lt" style="background:none;border:none;cursor:pointer;padding:0">수정</button>
+        <button onclick="delQuote('${q.id}')" class="text-xs text-lt" style="background:none;border:none;cursor:pointer;padding:0">삭제</button>
+      </div>` : ''}
+      ${repliesHTML}
+      ${replySection}
+    </div>`
+}
+
+function render() {
+  const g = DB.getGroup(gid)
+  if (!g) { location.href = 'dashboard.html'; return }
+  DB.setLastSeen(gid)
+  renderNav()
+
+  const myMember = g.members.find(m => m.isMe)
+  const allDone  = g.members.every(m => m.hasCompleted)
+
+  // 멤버별 완독 여부 맵
+  const completedMap = {}
+  g.members.forEach(m => { completedMap[m.id] = m.hasCompleted })
+
+  const myQuotes = g.quotes.filter(q => q.memberId === myMember?.id)
+  const otherQuotes = g.quotes.filter(q => q.memberId !== myMember?.id)
+
+  // 페이지별 멤버 목록 (중복 제거)
+  const pageMembers = {}
+  g.quotes.forEach(q => {
+    if (!q.pageNumber) return
+    if (!pageMembers[+q.pageNumber]) pageMembers[+q.pageNumber] = []
+    const m = g.members.find(m => m.id === q.memberId)
+    if (m && !pageMembers[+q.pageNumber].some(x => x.id === m.id))
+      pageMembers[+q.pageNumber].push({ id: m.id, name: m.name })
+  })
+  // 특정 구절 기준으로 같은 페이지의 다른 멤버 이름 배열 반환
+  const samePageWith = q => q.pageNumber
+    ? (pageMembers[+q.pageNumber] || []).filter(x => x.id !== q.memberId).map(x => x.name)
+    : []
+
+  // 폼 상태
+  const editQ = editId ? g.quotes.find(q => q.id === editId) : null
+  const memberOptions = g.members.map(m =>
+    `<option value="${m.id}" ${m.isMe?'selected':''}>${m.name}${m.isMe?' (나)':''}</option>`
+  ).join('')
+
+  const formHTML = showForm ? `
+    <div class="card mb-5" style="border:2px solid rgba(184,212,232,.4)">
+      <p class="font-semi text-sm mb-3">${editId ? '구절 수정' : '구절 추가'}</p>
+      <div class="fields">
+        ${!editId ? `<div class="field">
+          <label class="label">멤버</label>
+          <select id="q-member" class="select">${memberOptions}</select>
+        </div>` : ''}
+        <div class="field">
+          <label class="label">밑줄 구절 *</label>
+          <textarea id="q-content" class="textarea" style="font-family:'Noto Serif KR',serif;font-size:15px;min-height:100px"
+            placeholder="인상 깊었던 구절...">${editQ?.content ?? ''}</textarea>
+        </div>
+        <div class="field">
+          <label class="label">코멘트 (선택)</label>
+          <textarea id="q-comment" class="textarea" style="min-height:60px"
+            placeholder="이 구절에 대한 생각...">${editQ?.comment ?? ''}</textarea>
+        </div>
+        <div class="flex gap-3 items-end">
+          <div class="field" style="width:120px">
+            <label class="label">페이지</label>
+            <input id="q-page" class="input" type="number" min="1" max="9999" placeholder="예: 42" value="${editQ?.pageNumber ?? ''}">
+          </div>
+          <div class="flex gap-2" style="margin-left:auto">
+            <button onclick="cancelForm()" class="btn btn-secondary btn-sm">취소</button>
+            <button onclick="saveQuote()" class="btn btn-primary btn-sm">${editId ? '수정' : '저장'}</button>
+          </div>
+        </div>
+      </div>
+    </div>` : `<button class="btn-dashed mb-5" onclick="openForm()">+ 밑줄 구절 추가하기</button>`
+
+  const myHTML = myQuotes.length
+    ? `<div class="section-title"><span class="section-dot" style="background:var(--blue-dk)"></span>내 구절 (${myQuotes.length})</div>
+       <div style="display:flex;flex-direction:column;gap:12px;margin-bottom:32px">
+         ${myQuotes.map(q => quoteCard(q, myMember.name, g.members.findIndex(m => m.id === myMember.id), true, false, samePageWith(q))).join('')}
+       </div>` : ''
+
+  // 다른 멤버별로 그룹화
+  const otherByMember = {}
+  otherQuotes.forEach(q => {
+    if (!otherByMember[q.memberId]) otherByMember[q.memberId] = []
+    otherByMember[q.memberId].push(q)
+  })
+  const otherHTML = Object.keys(otherByMember).length ? `
+    <div class="section-title"><span class="section-dot" style="background:var(--pink)"></span>다른 멤버의 구절 ${allDone?'':'🔒'}</div>
+    ${!allDone ? `<div class="alert alert-yellow mb-4">
+      🔒 <b>완독 처리된 멤버의 구절만 공개됩니다.</b> 그룹 페이지에서 완독 상태를 변경할 수 있어요.
+    </div>` : `<div class="alert alert-green mb-4">🎉 모든 멤버가 완독했어요!</div>`}
+    <div style="display:flex;flex-direction:column;gap:12px">
+      ${Object.entries(otherByMember).map(([mId, qs]) => {
+        const mIdx = g.members.findIndex(x => x.id === mId)
+        const m = g.members[mIdx]
+        const blur = !completedMap[mId]
+        return qs.map(q => quoteCard(q, m?.name ?? '?', mIdx, false, blur, samePageWith(q))).join('')
+      }).join('')}
+    </div>` : ''
+
+  const emptyHTML = g.quotes.length === 0
+    ? `<div class="empty"><div class="empty-icon">✏️</div><p>아직 등록된 구절이 없어요.</p></div>` : ''
+
+  // 북마크 뷰
+  const bmIds = DB.getBookmarks()
+  const bmQuotes = g.quotes.filter(q => bmIds.includes(q.id) && q.memberId !== myMember?.id)
+  const bmHTML = bookmarkOnly
+    ? (bmQuotes.length
+        ? `<div style="display:flex;flex-direction:column;gap:12px">
+            ${bmQuotes.map(q => {
+              const mIdx = g.members.findIndex(x => x.id === q.memberId)
+              const m = g.members[mIdx]
+              const blur = !completedMap[q.memberId]
+              return quoteCard(q, m?.name ?? '?', mIdx, false, blur, samePageWith(q))
+            }).join('')}
+           </div>`
+        : `<div class="empty"><div class="empty-icon">⭐</div><p>북마크한 구절이 없어요.</p></div>`)
+    : ''
+
+  document.getElementById('root').innerHTML = `
+    <div class="flex items-center gap-2 mb-2 text-sm">
+      <a href="group.html?id=${gid}" class="text-lt" style="text-decoration:none">← 그룹으로</a>
+      <span class="text-lt">/</span>
+      <span class="font-semi font-serif" style="font-size:16px">밑줄 구절</span>
+    </div>
+    <p class="text-sm text-mid mb-4">${g.book.title} · ${g.book.author}</p>
+
+    <div class="flex gap-2 mb-5">
+      <button onclick="setTab(false)" class="btn btn-sm ${!bookmarkOnly?'btn-primary':'btn-secondary'}">전체</button>
+      <button onclick="setTab(true)"  class="btn btn-sm ${bookmarkOnly?'btn-primary':'btn-secondary'}">
+        ⭐ 북마크 ${bmIds.filter(id => g.quotes.some(q => q.id === id && q.memberId !== myMember?.id)).length || ''}
+      </button>
+    </div>
+
+    ${bookmarkOnly ? bmHTML : `${formHTML}${myHTML}${otherHTML}${emptyHTML}`}`
+}
+
+function openForm()    { showForm = true;  editId = null; render() }
+function cancelForm()  { showForm = false; editId = null; render() }
+function editQuote(id) { showForm = true;  editId = id;   render() }
+
+function saveQuote() {
+  const content = document.getElementById('q-content')?.value.trim()
+  if (!content) { toast('구절을 입력해주세요.'); return }
+  const g = DB.getGroup(gid)
+  if (!g) return
+
+  if (editId) {
+    const q = g.quotes.find(x => x.id === editId)
+    if (q) {
+      q.content    = content
+      q.comment    = document.getElementById('q-comment')?.value.trim() || null
+      q.pageNumber = document.getElementById('q-page')?.value || null
+      DB.saveGroup(g)
+    }
+  } else {
+    const memberId = document.getElementById('q-member')?.value
+    DB.addQuote(gid, {
+      id: uid(), memberId,
+      content,
+      comment:    document.getElementById('q-comment')?.value.trim() || null,
+      pageNumber: document.getElementById('q-page')?.value || null,
+      createdAt:  new Date().toISOString(),
+    })
+  }
+  toast('저장됐어요 ✓')
+  showForm = false; editId = null
+  render()
+}
+
+function delQuote(qid) {
+  if (!confirm('이 구절을 삭제할까요?')) return
+  DB.deleteQuote(gid, qid); render()
+}
+
+function toggleBM(qid) {
+  const added = DB.toggleBookmark(qid)
+  toast(added ? '⭐ 북마크했어요' : '북마크를 해제했어요')
+  render()
+}
+function setTab(bm) { bookmarkOnly = bm; replyOpenId = null; render() }
+
+function openReply(qid) {
+  replyOpenId = qid; render()
+  setTimeout(() => document.getElementById('ri-' + qid)?.focus(), 0)
+}
+function closeReply() { replyOpenId = null; render() }
+
+function submitReply(qid) {
+  const input = document.getElementById('ri-' + qid)
+  const content = input?.value.trim()
+  if (!content) { toast('댓글을 입력해주세요.'); return }
+  const g = DB.getGroup(gid); if (!g) return
+  const myMember = g.members.find(m => m.isMe)
+  const myIdx    = g.members.findIndex(m => m.isMe)
+  DB.addReply(gid, qid, {
+    id: uid(),
+    memberId: myMember.id, memberName: myMember.name, memberIdx: myIdx,
+    isMe: true, content,
+    createdAt: new Date().toISOString(),
+  })
+  replyOpenId = null; render()
+}
+
+function delReply(qid, rid) {
+  DB.deleteReply(gid, qid, rid); render()
+}
+
+render()
+</script>
+</body></html>

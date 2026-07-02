@@ -1,0 +1,270 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>그룹 만들기 — 교환독서</title>
+<link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+<nav class="nav"><div class="nav-inner"></div></nav>
+<div class="page-md">
+  <div class="mb-6">
+    <h1 class="font-serif" style="font-size:22px;font-weight:600">새 독서 그룹 만들기</h1>
+    <p class="text-sm text-mid mt-1">함께 읽고 싶은 책과 멤버를 설정하세요.</p>
+  </div>
+
+  <div class="steps">
+    <div id="dot-1" class="step-dot active">1</div><span class="step-label" id="lbl-1">책 선택</span>
+    <span class="step-sep">→</span>
+    <div id="dot-2" class="step-dot pending">2</div><span class="step-label text-lt" id="lbl-2">그룹 설정</span>
+    <span class="step-sep">→</span>
+    <div id="dot-3" class="step-dot pending">3</div><span class="step-label text-lt" id="lbl-3">멤버 추가</span>
+  </div>
+
+  <!-- Step 1 -->
+  <div id="step1" class="card">
+    <p class="font-semi mb-4">어떤 책을 읽으실 건가요?</p>
+    <div class="flex gap-2 mb-2">
+      <input id="book-q" class="input flex-1" placeholder="책 제목 또는 저자 검색..." type="text">
+      <button id="book-btn" class="btn btn-primary shrink-0">검색</button>
+    </div>
+    <button type="button" onclick="showAllSamples()" class="text-xs text-lt mb-3" style="background:none;border:none;cursor:pointer;padding:0;text-decoration:underline">샘플 책 목록 보기</button>
+    <div id="book-results" class="search-list"></div>
+    <div id="sel-box" class="hidden mt-3 alert alert-green flex items-center gap-3">
+      <span id="sel-cover"></span>
+      <div class="min-w-0 flex-1"><p id="sel-title" class="font-semi truncate"></p><p id="sel-author" class="text-sm text-mid"></p></div>
+      <button onclick="clearBook()" class="btn btn-sm btn-secondary shrink-0">변경</button>
+    </div>
+    <button id="to2" class="btn btn-primary btn-block mt-4 hidden">이 책으로 계속 →</button>
+  </div>
+
+  <!-- Step 2 -->
+  <div id="step2" class="card hidden">
+    <div class="fields">
+      <div class="field">
+        <label class="label">그룹 이름 *</label>
+        <input id="g-name" class="input" type="text" placeholder="예: 3월의 독서 모임" required maxlength="40">
+      </div>
+      <div class="field">
+        <label class="label">소개 (선택)</label>
+        <textarea id="g-desc" class="textarea" style="min-height:60px" placeholder="그룹을 소개해주세요..." maxlength="200"></textarea>
+      </div>
+      <div class="field">
+        <label class="label">그룹 색상</label>
+        <input type="hidden" id="g-color" value="#B8D4E8">
+        <div id="color-picker" style="display:flex;gap:8px;flex-wrap:wrap"></div>
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px">
+        <div class="field">
+          <label class="label">완독 기한 *</label>
+          <input id="g-deadline" class="input" type="date" required>
+        </div>
+        <div class="field">
+          <label class="label">총 페이지 수</label>
+          <input id="g-pages" class="input" type="number" min="1" max="9999" placeholder="예: 312">
+        </div>
+        <div class="field">
+          <label class="label">최대 인원</label>
+          <select id="g-max" class="select">
+            <option value="3">3명</option><option value="4">4명</option>
+            <option value="5">5명</option><option value="6" selected>6명</option>
+            <option value="7">7명</option><option value="8">8명</option>
+          </select>
+        </div>
+      </div>
+      <div class="flex gap-3">
+        <button type="button" onclick="goStep(1)" class="btn btn-secondary flex-1">← 이전</button>
+        <button type="button" id="to3" class="btn btn-primary flex-1">계속 →</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Step 3 -->
+  <div id="step3" class="hidden">
+    <div class="card mb-3">
+      <p class="font-semi mb-3">멤버를 추가하세요</p>
+      <p class="text-sm text-mid mb-4">나(본인)는 자동으로 포함됩니다. 함께 읽는 멤버 이름을 추가해주세요.</p>
+
+      <!-- 내 이름 (고정) -->
+      <div id="member-list" style="display:flex;flex-direction:column;gap:8px;margin-bottom:12px"></div>
+
+      <!-- 추가 인풋 -->
+      <div id="add-member-wrap" class="flex gap-2">
+        <input id="member-name" class="input flex-1" placeholder="멤버 이름 입력..." maxlength="20">
+        <button onclick="addMember()" class="btn btn-secondary shrink-0">추가</button>
+      </div>
+      <p id="member-count-msg" class="text-xs text-lt mt-2"></p>
+    </div>
+
+    <div id="create-err" class="alert alert-pink hidden text-sm mb-3"></div>
+    <div class="flex gap-3">
+      <button onclick="goStep(2)" class="btn btn-secondary flex-1">← 이전</button>
+      <button id="create-btn" onclick="createGroup()" class="btn btn-primary flex-1">그룹 만들기 🎉</button>
+    </div>
+  </div>
+</div>
+
+<script src="js/app.js"></script>
+<script>
+const me = requireProfile(); if (!me) throw 0
+renderNav()
+document.getElementById('g-deadline').min = minDate(3)
+
+// 색상 선택기 렌더
+;(function() {
+  const picker = document.getElementById('color-picker')
+  COVER_COLORS.forEach((c, i) => {
+    const btn = document.createElement('button')
+    btn.type = 'button'
+    btn.title = c.label
+    btn.style.cssText = `width:30px;height:30px;border-radius:50%;background:${c.color};
+      border:2.5px solid ${i===0?'var(--text)':'transparent'};
+      cursor:pointer;transition:all .15s;flex-shrink:0`
+    if (i === 0) btn.style.transform = 'scale(1.15)'
+    btn.onclick = () => {
+      document.getElementById('g-color').value = c.color
+      picker.querySelectorAll('button').forEach(b => {
+        b.style.borderColor = 'transparent'; b.style.transform = ''
+      })
+      btn.style.borderColor = 'var(--text)'; btn.style.transform = 'scale(1.15)'
+    }
+    picker.appendChild(btn)
+  })
+})()
+
+let selBook = null
+let members = [{ id: uid(), name: me.name, isMe: true, hasCompleted: false, completedAt: null }]
+
+// ── Step 전환 ───────────────────────────────────────────────────────────────
+function goStep(n) {
+  [1,2,3].forEach(i => {
+    document.getElementById(`step${i}`)?.classList?.toggle('hidden', i !== n)
+  })
+  ;[1,2,3].forEach(i => {
+    document.getElementById(`dot-${i}`).className = 'step-dot ' + (i < n ? 'done' : i === n ? 'active' : 'pending')
+    document.getElementById(`lbl-${i}`).style.color = i === n ? 'var(--text)' : 'var(--text-lt)'
+  })
+}
+
+// ── 책 검색 ─────────────────────────────────────────────────────────────────
+async function doSearch() {
+  const q = document.getElementById('book-q').value.trim(); if (!q) return
+  const btn = document.getElementById('book-btn')
+  btn.disabled = true; btn.textContent = '검색 중...'
+  const books = await searchBooks(q).catch(() => [])
+  btn.disabled = false; btn.textContent = '검색'
+  const el = document.getElementById('book-results')
+  if (!books.length) { el.innerHTML = '<p class="text-sm text-lt" style="padding:10px">결과가 없어요.</p>'; return }
+  el.innerHTML = books.map((b,i) => `
+    <div class="search-result" onclick="selectBook(${i})">
+      ${bookCoverHTML(b.cover_url, b.title, 'sm')}
+      <div class="min-w-0"><p class="font-semi text-sm truncate">${b.title}</p><p class="text-xs text-mid">${b.author}</p></div>
+    </div>`).join('')
+  el._books = books
+}
+function showAllSamples() {
+  const el = document.getElementById('book-results')
+  el._books = SAMPLE_BOOKS
+  el.innerHTML = SAMPLE_BOOKS.map((b,i) => `
+    <div class="search-result" onclick="selectBook(${i})">
+      ${bookCoverHTML(b.cover_url, b.title, 'sm')}
+      <div class="min-w-0"><p class="font-semi text-sm truncate">${b.title}</p><p class="text-xs text-mid">${b.author}</p></div>
+    </div>`).join('')
+}
+
+document.getElementById('book-btn').addEventListener('click', doSearch)
+document.getElementById('book-q').addEventListener('keydown', e => e.key==='Enter' && (e.preventDefault(), doSearch()))
+
+function selectBook(i) {
+  selBook = document.getElementById('book-results')._books[i]
+  document.getElementById('sel-cover').innerHTML = bookCoverHTML(selBook.cover_url, selBook.title, 'sm')
+  document.getElementById('sel-title').textContent = selBook.title
+  document.getElementById('sel-author').textContent = selBook.author
+  document.getElementById('sel-box').classList.remove('hidden')
+  document.getElementById('to2').classList.remove('hidden')
+  document.getElementById('book-results').innerHTML = ''
+}
+function clearBook() {
+  selBook = null
+  document.getElementById('sel-box').classList.add('hidden')
+  document.getElementById('to2').classList.add('hidden')
+}
+document.getElementById('to2').addEventListener('click', () => goStep(2))
+
+// ── Step 2 → 3 ───────────────────────────────────────────────────────────────
+document.getElementById('to3').addEventListener('click', () => {
+  const name = document.getElementById('g-name').value.trim()
+  const deadline = document.getElementById('g-deadline').value
+  if (!name) { toast('그룹 이름을 입력해주세요.'); return }
+  if (!deadline) { toast('완독 기한을 선택해주세요.'); return }
+  renderMemberList()
+  goStep(3)
+})
+
+// ── 멤버 ─────────────────────────────────────────────────────────────────────
+function renderMemberList() {
+  const max = parseInt(document.getElementById('g-max').value)
+  document.getElementById('add-member-wrap').classList.toggle('hidden', members.length >= max)
+  document.getElementById('member-count-msg').textContent = `${members.length}/${max}명`
+  document.getElementById('member-list').innerHTML = members.map((m, i) => `
+    <div class="flex items-center gap-2 p-2 rounded-xl" style="background:${m.isMe?'rgba(184,212,232,.2)':'rgba(245,245,245,.8)'}">
+      <div class="avatar" style="${avatarStyle(i, m.isMe)}">
+        ${m.name[0]}
+      </div>
+      <span class="text-sm flex-1">${m.name}</span>
+      ${m.isMe ? '<span class="badge badge-blue text-xs">나</span>' : `<button onclick="removeMember('${m.id}')" style="background:none;border:none;cursor:pointer;color:var(--text-lt);font-size:18px;line-height:1">×</button>`}
+    </div>`).join('')
+}
+
+function addMember() {
+  const max = parseInt(document.getElementById('g-max').value)
+  if (members.length >= max) { toast(`최대 ${max}명까지 추가할 수 있어요.`); return }
+  const name = document.getElementById('member-name').value.trim()
+  if (!name) return
+  if (members.some(m => m.name === name)) { toast('이미 있는 이름이에요.'); return }
+  members.push({ id: uid(), name, isMe: false, hasCompleted: false, completedAt: null })
+  document.getElementById('member-name').value = ''
+  renderMemberList()
+}
+function removeMember(id) {
+  members = members.filter(m => m.id !== id)
+  renderMemberList()
+}
+document.getElementById('member-name').addEventListener('keydown', e => e.key==='Enter' && (e.preventDefault(), addMember()))
+
+// ── 그룹 생성 ────────────────────────────────────────────────────────────────
+async function createGroup() {
+  const btn = document.getElementById('create-btn')
+  const err = document.getElementById('create-err')
+  btn.disabled = true; btn.textContent = '생성 중...'
+  err.classList.add('hidden')
+
+  const group = {
+    id: uid(),
+    name: document.getElementById('g-name').value.trim(),
+    description: document.getElementById('g-desc').value.trim() || null,
+    book: selBook,
+    deadline: document.getElementById('g-deadline').value,
+    coverColor: document.getElementById('g-color').value || COVER_COLORS[0].color,
+    totalPages: parseInt(document.getElementById('g-pages').value) || null,
+    maxMembers: parseInt(document.getElementById('g-max').value),
+    members,
+    quotes: [],
+    questions: [],
+    status: 'reading',
+    createdAt: new Date().toISOString(),
+  }
+
+  DB.saveGroup(group)
+  DB.setLastSeen(group.id)
+
+  // AI 질문 생성 시도 (API 키가 있을 때만)
+  if (DB.getApiKey()) {
+    btn.textContent = 'AI 질문 생성 중...'
+    await generateAIQuestions(group.id, group.book.title, group.book.author).catch(() => {})
+  }
+
+  location.href = `group.html?id=${group.id}`
+}
+</script>
+</body></html>

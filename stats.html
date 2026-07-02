@@ -1,0 +1,295 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>독서 통계 — 교환독서</title>
+<link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+<nav class="nav"><div class="nav-inner"></div></nav>
+<div class="page-sm" id="root"></div>
+
+<script src="js/app.js"></script>
+<script>
+const me = requireProfile(); if (!me) throw 0
+
+/* ── 공통 헬퍼 ── */
+function back() { return `<a href="stats.html" class="text-lt text-sm" style="text-decoration:none;display:inline-block;margin-bottom:20px">← 통계로</a>` }
+
+function quoteItem(q, book, groupName, memberName) {
+  return `
+    <div class="card mb-3" style="padding:16px">
+      <div class="flex items-center gap-2 mb-2">
+        <span class="text-xs font-semi text-mid">${memberName ?? ''}</span>
+        ${q.pageNumber ? `<span class="text-xs text-lt">p.${q.pageNumber}</span>` : ''}
+        <span class="text-xs text-lt" style="margin-left:auto">${fmtDate(q.createdAt)}</span>
+      </div>
+      <blockquote class="quote-content" style="font-size:14px;border-left-width:2px">${q.content}</blockquote>
+      ${q.comment ? `<p class="quote-comment" style="font-size:13px;margin-top:6px">${q.comment}</p>` : ''}
+      <p class="text-xs text-lt mt-2">${book} · ${groupName}</p>
+    </div>`
+}
+
+/* ── 뷰 라우팅 ── */
+function render() {
+  renderNav('stats')
+  const view = param('view')
+  if      (view === 'my-quotes')  renderMyQuotes()
+  else if (view === 'my-replies') renderMyReplies()
+  else if (view === 'bookmarks')  renderBookmarks()
+  else if (view === 'all-quotes') renderAllQuotes()
+  else if (view === 'done')       renderDone()
+  else if (view === 'reading')    renderReading()
+  else                            renderMain()
+}
+
+/* ── 메인 통계 ── */
+function renderMain() {
+  const groups = DB.getGroups()
+  const bm     = DB.getBookmarks()
+  const done   = groups.filter(g => g.status === 'completed')
+  const reading = groups.filter(g => g.status === 'reading')
+  let myQuotes = 0, myReplies = 0, totalQuotes = 0
+  groups.forEach(g => {
+    const myM = g.members.find(m => m.isMe)
+    totalQuotes += g.quotes.length
+    g.quotes.forEach(q => {
+      if (q.memberId === myM?.id) myQuotes++
+      ;(q.replies || []).forEach(r => { if (r.isMe) myReplies++ })
+    })
+  })
+
+  const big = [
+    { label:'읽은 책',     value:done.length,    icon:'📚', bg:'rgba(197,232,192,.35)', border:'rgba(197,232,192,.7)', href:'?view=done'      },
+    { label:'올린 구절',   value:myQuotes,        icon:'✏️', bg:'rgba(184,212,232,.35)', border:'rgba(184,212,232,.7)', href:'?view=my-quotes' },
+    { label:'참여한 그룹', value:groups.length,   icon:'👥', bg:'rgba(212,197,240,.35)', border:'rgba(212,197,240,.7)', href:'dashboard.html'  },
+  ]
+  const small = [
+    { label:'읽는 중',       value:reading.length, icon:'📖', bg:'rgba(245,230,163,.3)',  href:'?view=reading'    },
+    { label:'단 댓글',       value:myReplies,      icon:'💬', bg:'rgba(245,213,192,.35)', href:'?view=my-replies' },
+    { label:'북마크한 구절', value:bm.length,      icon:'⭐', bg:'rgba(245,230,163,.3)',  href:'?view=bookmarks'  },
+    { label:'전체 구절',     value:totalQuotes,    icon:'📝', bg:'rgba(184,212,232,.2)',  href:'?view=all-quotes' },
+  ]
+
+  document.getElementById('root').innerHTML = `
+    <h1 class="font-serif" style="font-size:22px;font-weight:600;margin-bottom:6px">독서 통계</h1>
+    <p class="text-sm text-mid mb-6">${me.name}님의 독서 기록</p>
+
+    <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-bottom:12px">
+      ${big.map(s => `
+        <a href="${s.href}" style="text-decoration:none;display:block;border-radius:16px;padding:20px 14px;text-align:center;background:${s.bg};border:1px solid ${s.border};transition:transform .15s"
+          onmouseover="this.style.transform='translateY(-2px)'" onmouseout="this.style.transform=''">
+          <div style="font-size:26px;margin-bottom:6px">${s.icon}</div>
+          <div class="font-serif" style="font-size:28px;font-weight:600;color:var(--text);line-height:1">${s.value}</div>
+          <div class="text-xs text-mid" style="margin-top:5px">${s.label}</div>
+        </a>`).join('')}
+    </div>
+
+    <div style="display:grid;grid-template-columns:repeat(2,1fr);gap:10px;margin-bottom:28px">
+      ${small.map(s => `
+        <a href="${s.href}" style="text-decoration:none;display:flex;align-items:center;gap:12px;border-radius:12px;padding:12px 14px;background:${s.bg};transition:transform .15s"
+          onmouseover="this.style.transform='translateY(-1px)'" onmouseout="this.style.transform=''">
+          <span style="font-size:18px">${s.icon}</span>
+          <div>
+            <div class="font-semi" style="font-size:18px;line-height:1;color:var(--text)">${s.value}</div>
+            <div class="text-xs text-mid" style="margin-top:3px">${s.label}</div>
+          </div>
+        </a>`).join('')}
+    </div>`
+}
+
+/* ── 내가 올린 구절 ── */
+function renderMyQuotes() {
+  const groups = DB.getGroups()
+  let html = ''
+  groups.forEach(g => {
+    const myM = g.members.find(m => m.isMe)
+    const qs  = g.quotes.filter(q => q.memberId === myM?.id)
+    if (!qs.length) return
+    html += `<div class="mb-5">
+      <div class="flex items-center gap-2 mb-3">
+        ${bookCoverHTML(g.book.cover_url, g.book.title, 'sm')}
+        <div><p class="font-semi">${g.book.title}</p><p class="text-xs text-mid">${g.book.author}</p></div>
+      </div>
+      ${qs.map(q => quoteItem(q, g.book.title, g.name, null)).join('')}
+    </div>`
+  })
+  document.getElementById('root').innerHTML = `
+    ${back()}
+    <h2 class="font-serif" style="font-size:20px;font-weight:600;margin-bottom:20px">✏️ 내가 올린 구절</h2>
+    ${html || '<div class="empty"><div class="empty-icon">✏️</div><p>올린 구절이 없어요.</p></div>'}`
+}
+
+/* ── 내 댓글 모아보기 ── */
+function renderMyReplies() {
+  const groups = DB.getGroups()
+  let items = []
+  groups.forEach(g => {
+    g.quotes.forEach(q => {
+      ;(q.replies || []).filter(r => r.isMe).forEach(r => {
+        const author = g.members.find(m => m.id === q.memberId)
+        items.push({ r, q, g, author })
+      })
+    })
+  })
+  items.sort((a, b) => b.r.createdAt.localeCompare(a.r.createdAt))
+
+  const html = items.map(({ r, q, g, author }) => `
+    <div class="card mb-3" style="padding:16px">
+      <p class="text-xs text-mid mb-2">${g.book.title} · ${g.name}</p>
+      <blockquote class="quote-content" style="font-size:13px;border-left-width:2px;color:var(--text-lt);margin-bottom:10px">
+        ${q.content.length > 80 ? q.content.slice(0,80)+'…' : q.content}
+      </blockquote>
+      <div class="flex gap-2 items-start">
+        <span style="font-size:16px">💬</span>
+        <div class="flex-1">
+          <p class="text-sm">${r.content}</p>
+          <p class="text-xs text-lt mt-1">${fmtDate(r.createdAt)}</p>
+        </div>
+      </div>
+    </div>`).join('')
+
+  document.getElementById('root').innerHTML = `
+    ${back()}
+    <h2 class="font-serif" style="font-size:20px;font-weight:600;margin-bottom:20px">💬 내가 단 댓글</h2>
+    ${html || '<div class="empty"><div class="empty-icon">💬</div><p>단 댓글이 없어요.</p></div>'}`
+}
+
+/* ── 북마크 모아보기 ── */
+function renderBookmarks() {
+  const bmIds  = DB.getBookmarks()
+  const groups = DB.getGroups()
+  let items = []
+  groups.forEach(g => {
+    g.quotes.filter(q => bmIds.includes(q.id)).forEach(q => {
+      const mIdx  = g.members.findIndex(m => m.id === q.memberId)
+      const m     = g.members[mIdx]
+      const blur  = !m?.hasCompleted
+      items.push({ q, g, m, blur })
+    })
+  })
+
+  const html = items.map(({ q, g, m, blur }) => `
+    <div class="card mb-3" style="padding:16px">
+      <div class="flex items-center gap-2 mb-2">
+        <span class="text-xs font-semi text-mid">${blur ? '🔒 비공개' : (m?.name ?? '?')}</span>
+        ${q.pageNumber && !blur ? `<span class="text-xs text-lt">p.${q.pageNumber}</span>` : ''}
+        <span class="text-xs text-lt" style="margin-left:auto">⭐</span>
+      </div>
+      <blockquote class="quote-content ${blur?'quote-blur':''}" style="font-size:14px;border-left-width:2px">
+        ${blur ? '완독 후 공개됩니다.' : q.content}
+      </blockquote>
+      ${q.comment && !blur ? `<p class="quote-comment" style="font-size:13px;margin-top:6px">${q.comment}</p>` : ''}
+      <p class="text-xs text-lt mt-2">${g.book.title} · ${g.name}</p>
+    </div>`).join('')
+
+  document.getElementById('root').innerHTML = `
+    ${back()}
+    <h2 class="font-serif" style="font-size:20px;font-weight:600;margin-bottom:20px">⭐ 북마크한 구절</h2>
+    ${html || '<div class="empty"><div class="empty-icon">⭐</div><p>북마크한 구절이 없어요.</p></div>'}`
+}
+
+/* ── 전체 구절 (책별) ── */
+function renderAllQuotes() {
+  const groups = DB.getGroups()
+  let html = ''
+  groups.forEach(g => {
+    if (!g.quotes.length) return
+    html += `<div class="mb-6">
+      <div class="flex items-center gap-3 mb-3" style="padding-bottom:10px;border-bottom:1.5px solid var(--border)">
+        ${bookCoverHTML(g.book.cover_url, g.book.title, 'sm')}
+        <div>
+          <p class="font-semi">${g.book.title}</p>
+          <p class="text-xs text-mid">${g.book.author} · ${g.name}</p>
+          <p class="text-xs text-lt">${g.quotes.length}개 구절</p>
+        </div>
+      </div>
+      ${g.quotes.map(q => {
+        const mIdx = g.members.findIndex(m => m.id === q.memberId)
+        const m    = g.members[mIdx]
+        const blur = !m?.hasCompleted
+        return `
+          <div style="padding:10px 0;border-bottom:1px solid rgba(184,212,232,.15)">
+            <div class="flex items-center gap-2 mb-1">
+              <div class="avatar" style="width:20px;height:20px;font-size:10px;${blur?'background:#e0dcd8':avatarStyle(mIdx,false)}">${blur?'?':m?.name[0]??'?'}</div>
+              <span class="text-xs text-mid">${blur?'🔒 비공개':m?.name??'?'}</span>
+              ${q.pageNumber&&!blur?`<span class="text-xs text-lt">p.${q.pageNumber}</span>`:''}
+              <span class="text-xs text-lt" style="margin-left:auto">${fmtDate(q.createdAt)}</span>
+            </div>
+            <blockquote class="quote-content ${blur?'quote-blur':''}" style="font-size:14px;border-left-width:2px">${blur?'완독 후 공개됩니다.':q.content}</blockquote>
+          </div>`
+      }).join('')}
+    </div>`
+  })
+  document.getElementById('root').innerHTML = `
+    ${back()}
+    <h2 class="font-serif" style="font-size:20px;font-weight:600;margin-bottom:20px">📝 전체 구절</h2>
+    ${html || '<div class="empty"><div class="empty-icon">📝</div><p>구절이 없어요.</p></div>'}`
+}
+
+/* ── 완독한 책 ── */
+function renderDone() {
+  const done = DB.getGroups().filter(g => g.status === 'completed')
+  const html = done.map(g => {
+    const myM    = g.members.find(m => m.isMe)
+    const myQ    = g.quotes.filter(q => q.memberId === myM?.id).length
+    const doneAt = myM?.completedAt ? fmtDate(myM.completedAt) : g.deadline
+    return `
+      <a href="group.html?id=${g.id}" style="text-decoration:none;display:block" class="card mb-3" style="padding:16px">
+        <div class="flex gap-3 items-start">
+          ${bookCoverHTML(g.book.cover_url, g.book.title, 'sm')}
+          <div class="flex-1 min-w-0">
+            <p class="font-semi truncate">${g.book.title}</p>
+            <p class="text-xs text-mid">${g.book.author}</p>
+            <p class="text-xs text-lt mt-1">${g.name} · 완독 ${doneAt}</p>
+            <div class="flex gap-3 mt-2 text-xs text-lt">
+              <span>✏️ 내 구절 ${myQ}개</span>
+              <span>👥 ${g.members.length}명</span>
+            </div>
+          </div>
+          <span class="badge badge-green shrink-0">✓ 완독</span>
+        </div>
+      </a>`
+  }).join('')
+  document.getElementById('root').innerHTML = `
+    ${back()}
+    <h2 class="font-serif" style="font-size:20px;font-weight:600;margin-bottom:20px">📚 완독한 책</h2>
+    ${html || '<div class="empty"><div class="empty-icon">📚</div><p>완독한 책이 없어요.</p></div>'}`
+}
+
+/* ── 읽는 중 ── */
+function renderReading() {
+  const reading = DB.getGroups().filter(g => g.status === 'reading')
+  const html = reading.map((g, gi) => {
+    const myM        = g.members.find(m => m.isMe)
+    const totalPages = g.totalPages || 0
+    const curPage    = myM?.currentPage || 0
+    const pct        = totalPages ? Math.min(100, Math.round(curPage/totalPages*100)) : 0
+    const dl         = daysLeft(g.deadline)
+    return `
+      <a href="group.html?id=${g.id}" style="text-decoration:none;display:block" class="card mb-3" style="padding:16px;border-top:3px solid ${g.coverColor||COVER_COLORS[gi%COVER_COLORS.length].color}">
+        <div class="flex gap-3 items-start">
+          ${bookCoverHTML(g.book.cover_url, g.book.title, 'sm')}
+          <div class="flex-1 min-w-0">
+            <p class="font-semi truncate">${g.book.title}</p>
+            <p class="text-xs text-mid">${g.book.author}</p>
+            <p class="text-xs text-lt mt-1">${g.name}</p>
+            ${totalPages ? `
+            <div class="flex items-center gap-2 mt-2">
+              <div class="progress-wrap flex-1" style="height:5px"><div class="progress-bar" style="width:${pct}%"></div></div>
+              <span class="text-xs text-lt">${pct}%</span>
+            </div>` : ''}
+          </div>
+          <span class="text-xs shrink-0 ${dl<=3&&dl>=0?'':'text-lt'}" style="${dl<=3&&dl>=0?'color:#e87070;font-weight:600':''}">D-${dl>0?dl:dl===0?'오늘':'초과'}</span>
+        </div>
+      </a>`
+  }).join('')
+  document.getElementById('root').innerHTML = `
+    ${back()}
+    <h2 class="font-serif" style="font-size:20px;font-weight:600;margin-bottom:20px">📖 읽는 중</h2>
+    ${html || '<div class="empty"><div class="empty-icon">📖</div><p>읽는 중인 책이 없어요.</p></div>'}`
+}
+
+render()
+</script>
+</body></html>

@@ -1,0 +1,126 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>내 그룹 — 교환독서</title>
+<link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+<nav class="nav"><div class="nav-inner"></div></nav>
+<div class="page">
+  <div class="flex items-center justify-between mb-6">
+    <div>
+      <h1 id="welcome" class="font-serif" style="font-size:22px;font-weight:600"></h1>
+      <p class="text-sm text-mid mt-1">오늘도 좋은 독서 되세요.</p>
+    </div>
+    <div class="flex gap-2">
+      <label class="btn btn-secondary btn-sm" style="cursor:pointer">
+        📥 가져오기
+        <input type="file" accept=".json" id="import-file" class="hidden">
+      </label>
+      <a href="new-group.html" class="btn btn-primary">+ 그룹 만들기</a>
+    </div>
+  </div>
+
+  <div id="reading-section" class="hidden mb-8">
+    <div class="section-title">
+      <span class="section-dot" style="background:var(--blue-dk)"></span>
+      읽는 중 <span id="reading-count" class="text-lt"></span>
+    </div>
+    <div id="reading-list" class="grid-2"></div>
+  </div>
+
+  <div id="completed-section" class="hidden">
+    <div class="section-title">
+      <span class="section-dot" style="background:var(--green)"></span>
+      완독 완료 <span id="completed-count" class="text-lt"></span>
+    </div>
+    <div id="completed-list" class="grid-2"></div>
+  </div>
+
+  <div id="empty-state" class="hidden">
+    <div class="empty">
+      <div class="empty-icon">📚</div>
+      <p class="mb-4">참여 중인 그룹이 없어요.</p>
+      <a href="new-group.html" class="btn btn-primary btn-sm">첫 그룹 만들기</a>
+    </div>
+  </div>
+</div>
+
+<script src="js/app.js"></script>
+<script>
+const me = requireProfile(); if (!me) throw 0
+renderNav('dashboard')
+document.getElementById('welcome').textContent = `안녕하세요, ${me.name} 님 👋`
+
+function groupCardHTML(g) {
+  const done = g.members.filter(m => m.hasCompleted).length
+  const total = g.members.length
+  const dl = daysLeft(g.deadline)
+  const pct = total ? Math.round(done/total*100) : 0
+  const newCount = DB.getNewCount(g.id)
+  return `
+    <a href="group.html?id=${g.id}" style="text-decoration:none">
+      <div class="card" style="position:relative;height:100%;display:flex;flex-direction:column;gap:14px;transition:all .15s"
+        onmouseover="this.style.transform='translateY(-2px)';this.style.boxShadow='0 6px 24px rgba(61,53,48,.1)'"
+        onmouseout="this.style.transform='';this.style.boxShadow=''">
+        <div style="height:5px;background:${g.coverColor||COVER_COLORS[0].color};border-radius:12px 12px 0 0;margin:-24px -24px 8px;flex-shrink:0"></div>
+        ${newCount ? `<div style="position:absolute;top:-7px;right:-7px;background:#e87070;color:#fff;font-size:11px;font-weight:700;min-width:20px;height:20px;border-radius:99px;display:flex;align-items:center;justify-content:center;padding:0 5px;box-shadow:0 2px 6px rgba(232,112,112,.4)">${newCount}</div>` : ''}
+        <div class="flex items-start gap-3">
+          ${bookCoverHTML(g.book.cover_url, g.book.title)}
+          <div class="flex-1 min-w-0">
+            <div class="flex items-start justify-between gap-2">
+              <div class="min-w-0">
+                <p class="font-semi truncate">${g.name}</p>
+                <p class="text-xs text-mid truncate mt-1">${g.book.title}</p>
+                <p class="text-xs text-lt">${g.book.author}</p>
+              </div>
+              <span class="badge shrink-0 ${g.status==='completed'?'badge-green':'badge-blue'}">
+                ${g.status==='completed'?'완독 ✓':'읽는 중'}
+              </span>
+            </div>
+          </div>
+        </div>
+        <div class="flex justify-between text-xs text-lt">
+          <span>👥 ${total}명</span>
+          <span>✏️ ${g.quotes.length}개 구절</span>
+          ${g.status==='reading'?`<span ${dl<=3&&dl>=0?'style="color:#e87070;font-weight:500"':''}>D-${dl>0?dl:dl===0?'오늘':'기한초과'}</span>`:''}
+        </div>
+        ${g.status==='reading'?`<div class="progress-wrap"><div class="progress-bar" style="width:${pct}%"></div></div>`:''}
+      </div>
+    </a>`
+}
+
+function render() {
+  const groups = DB.getGroups()
+  const reading   = groups.filter(g => g.status === 'reading')
+  const completed = groups.filter(g => g.status === 'completed')
+
+  document.getElementById('empty-state').classList.toggle('hidden', groups.length > 0)
+
+  const rs = document.getElementById('reading-section')
+  rs.classList.toggle('hidden', !reading.length)
+  document.getElementById('reading-count').textContent = `(${reading.length})`
+  document.getElementById('reading-list').innerHTML = reading.map(groupCardHTML).join('')
+
+  const cs = document.getElementById('completed-section')
+  cs.classList.toggle('hidden', !completed.length)
+  document.getElementById('completed-count').textContent = `(${completed.length})`
+  document.getElementById('completed-list').innerHTML = completed.map(groupCardHTML).join('')
+}
+render()
+
+// 그룹 가져오기
+document.getElementById('import-file').addEventListener('change', async e => {
+  const file = e.target.files[0]; if (!file) return
+  try {
+    const g = await importGroup(file)
+    toast(`"${g.name}" 그룹을 가져왔어요 ✓`)
+    render()
+  } catch(ex) {
+    toast('가져오기 실패: ' + ex.message)
+  }
+  e.target.value = ''
+})
+</script>
+</body></html>
