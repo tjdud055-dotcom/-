@@ -183,14 +183,6 @@ function render() {
             카카오톡으로 공유
           </button>
         </div>
-        <div id="share-box" ${DB.isCloudGroup(g.id) ? '' : 'class="hidden"'}>
-          <p class="text-xs text-mid mb-1">아래 링크를 멤버들에게 공유하세요</p>
-          <div class="flex gap-2">
-            <input id="share-url" class="input" style="font-size:12px;padding:6px 10px" readonly
-              value="${(()=>{const u=DB.getSupabaseUrl(),k=DB.getSupabaseKey(),base=location.href.split('?')[0]+'?id='+g.id+'&cloud=1';return u&&k?base+'&sburl='+encodeURIComponent(u)+'&sbkey='+encodeURIComponent(k):base})()}">
-            <button onclick="copyShareUrl()" class="btn btn-secondary btn-sm shrink-0">복사</button>
-          </div>
-        </div>
       </div>
 
       <!-- 멤버 -->
@@ -342,7 +334,6 @@ async function toggleCloud() {
   const isCloud = DB.isCloudGroup(id)
   if (isCloud) {
     cloudUnsubscribe(); DB.setCloudGroup(id, false)
-    document.getElementById('share-box')?.classList.add('hidden')
     toast('클라우드 공유를 중단했어요'); render(); return
   }
   const btn = document.getElementById('cloud-btn')
@@ -415,20 +406,6 @@ async function shareKakao() {
       await copyInviteLink()
       toast('카카오톡이 없으면 복사된 링크를 붙여넣기하세요.')
     }, 500)
-  }
-}
-
-async function copyShareUrl() {
-  const url = document.getElementById('share-url')?.value
-  if (!url) return
-  try {
-    await navigator.clipboard.writeText(url)
-    toast('복사됐어요 ✓')
-  } catch {
-    const el = document.getElementById('share-url')
-    el.select(); el.setSelectionRange(0, 9999)
-    document.execCommand('copy')
-    toast('복사됐어요 ✓')
   }
 }
 
