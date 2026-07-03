@@ -192,6 +192,41 @@ const STEPS = [
     final: false,
   },
   {
+    bg: 'linear-gradient(135deg, #F5E6A3 0%, #F5D5C0 100%)',
+    dot: '#F5E6A3',
+    emoji: '🔒',
+    title: '완독 전엔\n구절이 감춰져요',
+    desc: null,
+    html: `
+      <div style="margin-bottom:18px">
+        <div style="background:#fff;border-radius:10px;padding:10px 12px;margin-bottom:6px;box-shadow:0 1px 5px rgba(0,0,0,.07)">
+          <div style="display:flex;align-items:center;gap:6px;margin-bottom:5px">
+            <div style="width:18px;height:18px;border-radius:50%;background:#D4C5F0;font-size:9px;display:flex;align-items:center;justify-content:center;flex-shrink:0">박</div>
+            <span style="font-size:11px;color:#bbb">박준호 · 완독 전</span>
+          </div>
+          <p style="filter:blur(4px);font-size:12px;line-height:1.5;color:#555;font-style:italic;margin:0;user-select:none">"삶이란 결국 선택의 연속이며, 그 선택들이 모여 우리의 이야기가 된다."</p>
+        </div>
+        <div style="background:#fff;border-radius:10px;padding:10px 12px;margin-bottom:6px;box-shadow:0 1px 5px rgba(0,0,0,.07);border:1.5px solid #F5D5C0">
+          <div style="display:flex;align-items:center;gap:6px;margin-bottom:5px">
+            <div style="width:18px;height:18px;border-radius:50%;background:#F2C4CE;font-size:9px;display:flex;align-items:center;justify-content:center;flex-shrink:0">나</div>
+            <span style="font-size:11px;color:#bbb">나 · 내 구절은 보여요</span>
+          </div>
+          <p style="font-size:12px;line-height:1.5;color:#555;font-style:italic;margin:0">"마음이 흔들릴 때마다 이 문장이 생각났다."</p>
+        </div>
+        <div style="background:#fff;border-radius:10px;padding:10px 12px;box-shadow:0 1px 5px rgba(0,0,0,.07)">
+          <div style="display:flex;align-items:center;gap:6px;margin-bottom:5px">
+            <div style="width:18px;height:18px;border-radius:50%;background:#B8E8D4;font-size:9px;display:flex;align-items:center;justify-content:center;flex-shrink:0">김</div>
+            <span style="font-size:11px;color:#bbb">김민지 · 완독 전</span>
+          </div>
+          <p style="filter:blur(4px);font-size:12px;line-height:1.5;color:#555;font-style:italic;margin:0;user-select:none">"우리가 서로를 이해하는 순간, 세상은 조금 더 넓어진다."</p>
+        </div>
+        <p style="text-align:center;font-size:12px;color:#b08060;margin:10px 0 0">🔓 전원 완독 시 모두의 구절이 한꺼번에 공개돼요!</p>
+      </div>
+    `,
+    features: null,
+    final: false,
+  },
+  {
     bg: 'linear-gradient(135deg, #D4C5F0 0%, #E8C5D4 100%)',
     dot: '#D4C5F0',
     emoji: '🎉',
@@ -224,6 +259,7 @@ function render(idx, animate = false) {
   ` : ''
 
   const descHTML = s.desc ? `<p class="ob-desc">${s.desc.replace(/\n/g, '<br>')}</p>` : ''
+  const customHTML = s.html || ''
 
   const actionsHTML = s.final ? `
     <a href="new-group.html" onclick="finish()" class="btn btn-primary btn-block">그룹 만들러 가기 →</a>
@@ -240,6 +276,7 @@ function render(idx, animate = false) {
       <span class="ob-emoji">${s.emoji}</span>
       <h1 class="ob-title">${s.title.replace(/\n/g, '<br>')}</h1>
       ${descHTML}
+      ${customHTML}
       ${featuresHTML}
       <div class="ob-actions">${actionsHTML}</div>
     </div>
