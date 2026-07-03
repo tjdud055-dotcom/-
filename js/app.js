@@ -197,8 +197,16 @@ async function cloudPull(groupId) {
   const { data, error } = await sb.from('gd_groups').select('data').eq('id', groupId).single()
   if (error || !data) return null
   const g = data.data
-  DB._saveGroups(DB.getGroups().filter(x => x.id !== g.id))  // 로컬 덮어쓰기
-  const gs = DB.getGroups(); gs.unshift(g); DB._saveGroups(gs)
+  // 현재 기기의 사용자에 맞게 isMe 재계산
+  const me = DB.getMe()
+  if (me && g.members) {
+    g.members = g.members.map(m => ({
+      ...m,
+      isMe: me.userId ? m.userId === me.userId : m.name === me.name
+    }))
+  }
+  const gs = DB.getGroups().filter(x => x.id !== g.id)
+  gs.unshift(g); DB._saveGroups(gs)
   return g
 }
 

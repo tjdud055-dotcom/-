@@ -126,9 +126,9 @@ document.getElementById('auth-form').addEventListener('submit', async e => {
       }
       setMsg(map[error.message] || '가입 실패: ' + error.message, 'pink')
     } else if (data.session) {
-      // 이메일 확인 비활성화 시 바로 로그인
       DB.setMe({ name: username, email, userId: data.user.id })
-      location.replace('dashboard.html')
+      const next = _paramFromURL('next')
+      location.replace(next ? decodeURIComponent(next) : 'dashboard.html')
     } else {
       setMsg('📩 가입 확인 이메일을 보냈어요. 메일함을 확인해주세요.', 'green')
     }
@@ -140,7 +140,8 @@ document.getElementById('auth-form').addEventListener('submit', async e => {
       const meta = data.user.user_metadata
       const name = meta.username || meta.name || email.split('@')[0]
       DB.setMe({ name, email, userId: data.user.id })
-      location.replace('dashboard.html')
+      const next = _paramFromURL('next')
+      location.replace(next ? decodeURIComponent(next) : 'dashboard.html')
     }
   }
 

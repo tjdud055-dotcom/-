@@ -7,86 +7,141 @@
 </head>
 <body>
 <nav class="nav"><div class="nav-inner"></div></nav>
-<div class="page-sm" style="text-align:center">
-  <div id="loading" class="spinner"></div>
+<div class="page-sm" style="padding-top:40px">
+  <div id="loading" style="text-align:center;padding:60px 0">
+    <div class="spinner"></div>
+  </div>
   <div id="content" class="hidden"></div>
 </div>
 
-<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
 <script src="js/app.js"></script>
 <script>
-const sb = getSB();
+renderNav()
 
-async function joinGroup(groupId, userId) {
-  const btn = document.getElementById('join-btn');
-  btn.disabled = true; btn.textContent = '참여 중...';
-  const { error } = await sb.from('group_members').insert({ group_id: groupId, user_id: userId });
-  if (error) {
-    btn.disabled = false; btn.textContent = '이 그룹에 참여하기 📖';
-    toast('참여 실패: ' + error.message);
-  } else {
-    location.href = `group.html?id=${groupId}`;
-  }
+function show(html) {
+  document.getElementById('loading').classList.add('hidden')
+  const c = document.getElementById('content')
+  c.classList.remove('hidden')
+  c.innerHTML = html
 }
 
-(async () => {
-  const code = param('code');
-  if (!code) { location.href = 'index.html'; return; }
+function errPage(msg) {
+  show(`<div class="empty" style="padding-top:40px">
+    <div class="empty-icon">🔗</div>
+    <p class="font-semi" style="font-size:17px;margin-bottom:8px">초대 링크 오류</p>
+    <p class="text-mid text-sm mb-4">${msg}</p>
+    <a href="index.html" class="btn btn-secondary btn-sm">홈으로</a>
+  </div>`)
+}
 
-  const user = await getUser();
-  renderNav();
+;(async () => {
+  const groupId = param('id')
+  const sburl   = param('sburl')
+  const sbkey   = param('sbkey')
 
-  const { data: g } = await sb.from('groups')
-    .select('*, books(*), group_members(user_id)')
-    .eq('invite_code', code).single();
+  if (!groupId) { errPage('링크가 올바르지 않아요.'); return }
 
-  document.getElementById('loading').classList.add('hidden');
-  document.getElementById('content').classList.remove('hidden');
+  // Supabase 설정 자동 저장
+  if (sburl && sbkey && !DB.getSupabaseUrl()) DB.setSupabase(sburl, sbkey)
 
-  if (!g) {
-    document.getElementById('content').innerHTML = `
-      <div class="empty">
-        <div class="empty-icon">🔗</div>
-        <p class="font-semi" style="font-size:17px;margin-bottom:8px">유효하지 않은 초대 링크</p>
-        <p class="text-mid text-sm">초대 링크를 다시 확인해주세요.</p>
-        <a href="index.html" class="btn btn-secondary mt-4 btn-sm">홈으로</a>
-      </div>`;
-    return;
+  // 그룹 데이터 가져오기
+  const g = await cloudPull(groupId).catch(() => null)
+  if (!g) { errPage('그룹을 찾을 수 없어요. 링크가 만료됐거나 잘못됐을 수 있어요.'); return }
+
+  const me = DB.getMe()
+
+  // 이미 멤버인지 확인 (userId 또는 이름으로)
+  const isMember = me && g.members.some(m =>
+    (me.userId && m.userId === me.userId) || m.name === me.name
+  )
+  if (isMember) { location.replace(`group.html?id=${groupId}`); return }
+
+  const isFull = g.members.length >= (g.maxMembers || 8)
+
+  // 그룹 미리보기 렌더
+  const previewHTML = `
+    <div class="text-center mb-6">
+      ${bookCoverHTML(g.book?.cover_url, g.book?.title, 'lg')}
+    </div>
+    <h1 class="font-serif text-center" style="font-size:22px;font-weight:600;margin-bottom:6px">${g.name}</h1>
+    <p class="text-mid text-center text-sm mb-1">${g.book?.title} · ${g.book?.author}</p>
+    ${g.description ? `<p class="text-sm text-lt text-center mb-4">${g.description}</p>` : '<div class="mb-4"></div>'}
+    <div class="flex gap-4 justify-center text-sm text-mid mb-6">
+      <span>📅 ${g.deadline}</span>
+      <span>👥 ${g.members.length}/${g.maxMembers || 8}명</span>
+    </div>`
+
+  if (isFull) {
+    show(`${previewHTML}
+      <div class="alert alert-pink text-center">😢 그룹 정원이 꽉 찼어요.</div>
+      <a href="dashboard.html" class="btn btn-secondary btn-block mt-3">내 그룹 보기</a>`)
+    return
   }
 
-  const isMember = user && g.group_members.some(m => m.user_id === user.id);
-  if (isMember) { location.href = `group.html?id=${g.id}`; return; }
-
-  const isFull = g.group_members.length >= g.max_members;
-  const isDone = g.status === 'completed';
-
-  document.getElementById('content').innerHTML = `
-    <div style="margin-bottom:24px">
-      ${bookCoverHTML(g.books.cover_url, g.books.title, 'lg')}
-    </div>
-    <h1 class="font-serif" style="font-size:22px;font-weight:600;margin-bottom:6px">${g.name}</h1>
-    <p class="text-mid">${g.books.title} · ${g.books.author}</p>
-    ${g.description ? `<p class="text-sm text-lt mt-2">${g.description}</p>` : ''}
-    <div class="flex gap-5 justify-center mt-4 mb-6 text-sm text-mid">
-      <span>📅 완독 기한 ${g.deadline}</span>
-      <span>👥 ${g.group_members.length}/${g.max_members}명</span>
-    </div>
-    ${isFull ? `
-      <div class="alert alert-pink">😢 그룹이 꽉 찼어요. 다른 그룹을 찾아보세요.</div>
-      <a href="explore.html" class="btn btn-secondary btn-block mt-3">다른 그룹 보기</a>
-    ` : isDone ? `
-      <div class="alert alert-yellow">이미 완독 완료된 그룹이에요.</div>
-    ` : !user ? `
-      <div class="card mt-2">
+  if (!me) {
+    // 로그인 후 이 페이지로 돌아오게
+    const nextUrl = encodeURIComponent(location.href)
+    show(`${previewHTML}
+      <div class="card" style="text-align:center">
         <p class="text-mid mb-4">참여하려면 먼저 로그인해주세요.</p>
-        <a href="auth.html" class="btn btn-primary btn-block">로그인 / 회원가입</a>
-      </div>
-    ` : `
-      <button id="join-btn" class="btn btn-primary btn-block" style="padding:14px;font-size:15px"
-        onclick="joinGroup('${g.id}','${user.id}')">
-        이 그룹에 참여하기 📖
-      </button>
-    `}`;
-})();
+        <a href="auth.html?next=${nextUrl}" class="btn btn-primary btn-block">로그인 / 회원가입</a>
+      </div>`)
+    return
+  }
+
+  show(`${previewHTML}
+    <button id="join-btn" onclick="joinGroup()" class="btn btn-primary btn-block" style="padding:14px;font-size:15px">
+      이 그룹에 참여하기 📖
+    </button>`)
+})()
+
+async function joinGroup() {
+  const btn = document.getElementById('join-btn')
+  btn.disabled = true; btn.textContent = '참여 중...'
+
+  const groupId = param('id')
+  const me = DB.getMe()
+  const g = DB.getGroup(groupId)
+
+  if (!g || !me) { toast('오류가 발생했어요. 새로고침해주세요.'); btn.disabled = false; btn.textContent = '이 그룹에 참여하기 📖'; return }
+
+  // 중복 체크
+  if (g.members.some(m => (me.userId && m.userId === me.userId) || m.name === me.name)) {
+    location.replace(`group.html?id=${groupId}`); return
+  }
+
+  // 새 멤버 추가
+  const newMember = {
+    id: uid(),
+    name: me.name,
+    isMe: true,
+    userId: me.userId || null,
+    hasCompleted: false,
+    completedAt: null,
+    currentPage: 0,
+    completionNote: null,
+  }
+  g.members.push(newMember)
+
+  // 로컬 저장 (내 isMe 유지)
+  DB.saveGroup(g)
+  DB.setLastSeen(groupId)
+
+  // 클라우드 push (isMe를 false로 바꿔서 올림)
+  const gForCloud = { ...g, members: g.members.map(m => ({ ...m, isMe: false })) }
+  const gs = DB.getGroups().filter(x => x.id !== gForCloud.id)
+  gs.unshift(gForCloud)
+  // 임시로 저장 후 push
+  DB._saveGroups(gs)
+  await cloudPush(groupId).catch(() => {})
+  // 다시 isMe 복원
+  g.members = g.members.map(m => ({ ...m, isMe: me.userId ? m.userId === me.userId : m.name === me.name }))
+  DB.saveGroup(g)
+
+  DB.setCloudGroup(groupId, true)
+  toast('그룹에 참여했어요! 📖')
+  location.replace(`group.html?id=${groupId}`)
+}
 </script>
 </body></html>

@@ -133,7 +133,7 @@ document.getElementById('g-deadline').min = minDate(3)
 })()
 
 let selBook = null
-let members = [{ id: uid(), name: me.name, isMe: true, hasCompleted: false, completedAt: null }]
+let members = [{ id: uid(), name: me.name, isMe: true, userId: me.userId || null, hasCompleted: false, completedAt: null }]
 
 // ── Step 전환 ───────────────────────────────────────────────────────────────
 function goStep(n) {

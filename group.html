@@ -164,8 +164,16 @@ function render() {
           ${DB.isCloudGroup(g.id) ? '☁️ 동기화 중' : '☁️ 클라우드 공유'}
         </button>` : ''}
         <div class="flex gap-2">
+          ${DB.getSupabaseUrl() ? `<button onclick="generateInviteLink()" class="btn btn-secondary btn-sm flex-1">🔗 초대 링크</button>` : ''}
           <button onclick="exportGroup('${g.id}')" class="btn btn-secondary btn-sm flex-1">📤 내보내기</button>
           <button onclick="deleteGroup()" class="btn btn-sm flex-1" style="background:transparent;border:1px solid var(--border);color:var(--text-lt)">🗑 삭제</button>
+        </div>
+        <div id="invite-box" class="hidden">
+          <p class="text-xs text-mid mb-1">🔗 아래 링크로 멤버를 초대하세요</p>
+          <div class="flex gap-2">
+            <input id="invite-url" class="input" style="font-size:12px;padding:6px 10px" readonly>
+            <button onclick="copyInviteLink()" class="btn btn-secondary btn-sm shrink-0">복사</button>
+          </div>
         </div>
         <div id="share-box" ${DB.isCloudGroup(g.id) ? '' : 'class="hidden"'}>
           <p class="text-xs text-mid mb-1">아래 링크를 멤버들에게 공유하세요</p>
@@ -337,6 +345,28 @@ async function toggleCloud() {
   cloudSubscribe(id, () => { toast('☁️ 멤버가 업데이트했어요'); render() })
   render()
   toast('☁️ 클라우드 공유 시작! 링크를 멤버에게 보내세요')
+}
+
+async function generateInviteLink() {
+  // 클라우드에 그룹이 없으면 먼저 업로드
+  if (!DB.isCloudGroup(id)) {
+    const ok = await cloudPush(id).catch(() => false)
+    if (!ok) { toast('Supabase 연결 실패. 설정을 확인해주세요.'); return }
+    DB.setCloudGroup(id, true)
+  }
+  const u = DB.getSupabaseUrl(), k = DB.getSupabaseKey()
+  const base = location.href.split('?')[0].replace('group.html', 'invite.html')
+  const url = `${base}?id=${id}&sburl=${encodeURIComponent(u)}&sbkey=${encodeURIComponent(k)}`
+  const box = document.getElementById('invite-box')
+  const input = document.getElementById('invite-url')
+  if (box && input) { input.value = url; box.classList.remove('hidden') }
+}
+
+async function copyInviteLink() {
+  const url = document.getElementById('invite-url')?.value
+  if (!url) return
+  try { await navigator.clipboard.writeText(url); toast('초대 링크가 복사됐어요 ✓') }
+  catch { const el = document.getElementById('invite-url'); el.select(); document.execCommand('copy'); toast('초대 링크가 복사됐어요 ✓') }
 }
 
 async function copyShareUrl() {
