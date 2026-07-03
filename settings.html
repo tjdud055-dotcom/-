@@ -155,11 +155,6 @@
     </div>
   </div>
 
-  <p class="text-xs text-lt text-center">
-    모든 데이터는 이 기기의 브라우저에만 저장됩니다.<br>
-    브라우저 데이터 삭제 시 데이터가 사라질 수 있으니 주기적으로 백업하세요.
-  </p>
-
   <!-- 개발자 진입 -->
   <div id="dev-entry-wrap" style="text-align:center;padding:28px 0 4px">
     <button onclick="showDevPrompt()" style="background:none;border:none;font-size:10px;color:var(--text-lt);opacity:.3;cursor:pointer;padding:4px 10px;font-family:inherit;letter-spacing:.05em">개발자</button>
@@ -217,6 +212,26 @@ document.getElementById('bio-count').textContent = (me.bio || '').length + '/60'
 renderColorPicker()
 updateAvatar()
 
+// Supabase에서 최신 프로필 불러오기
+;(async () => {
+  try {
+    const sbClient = window.supabase.createClient(DB.getSupabaseUrl(), DB.getSupabaseKey())
+    const { data: { session } } = await sbClient.auth.getSession()
+    if (!session) return
+    const meta = session.user.user_metadata
+    const name  = meta.username || me.name
+    const bio   = meta.bio !== undefined ? meta.bio : (me.bio || '')
+    const color = meta.profileColor || me.profileColor || '#D4C5F0'
+    DB.setMe({ ...DB.getMe(), name, bio, profileColor: color })
+    document.getElementById('my-name').value = name
+    document.getElementById('my-bio').value = bio
+    document.getElementById('bio-count').textContent = bio.length + '/60'
+    selectedColor = color
+    renderColorPicker()
+    updateAvatar()
+  } catch(_) {}
+})()
+
 async function saveProfile() {
   const name = document.getElementById('my-name').value.trim()
   const bio  = document.getElementById('my-bio').value.trim()
@@ -225,7 +240,10 @@ async function saveProfile() {
   try {
     const sbClient = window.supabase.createClient(DB.getSupabaseUrl(), DB.getSupabaseKey())
     const { data: { session } } = await sbClient.auth.getSession()
-    if (session) await sbClient.auth.updateUser({ data: { username: name, bio, profileColor: selectedColor } })
+    if (session) {
+      const { error } = await sbClient.auth.updateUser({ data: { username: name, bio, profileColor: selectedColor } })
+      if (error) { toast('저장 실패: ' + error.message); return }
+    }
   } catch(_) {}
   toast('프로필이 저장됐어요 ✓')
 }
