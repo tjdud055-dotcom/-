@@ -55,10 +55,9 @@ renderNav('explore')
   const { data, error } = await sb
     .from('gd_groups')
     .select('id, data')
-    .filter('data->>isPublic', 'eq', 'true')
     .filter('data->>status', 'eq', 'reading')
     .order('updated_at', { ascending: false })
-    .limit(40)
+    .limit(200)
 
   document.getElementById('loading').classList.add('hidden')
 
@@ -68,11 +67,11 @@ renderNav('explore')
     return
   }
 
-  // 내가 이미 참여 중인 그룹 제외, 정원 마감 제외
+  // isPublic 클라이언트 필터 (JSONB 불리언 비교 이슈 우회), 내 그룹·정원 마감 제외
   const myGroups = new Set(DB.getGroups().map(g => g.id))
   const available = (data || [])
     .map(row => row.data)
-    .filter(g => g && !myGroups.has(g.id) && g.members.length < (g.maxMembers || 8))
+    .filter(g => g && g.isPublic === true && !myGroups.has(g.id) && g.members.length < (g.maxMembers || 8))
 
   if (!available.length) {
     document.getElementById('empty').classList.remove('hidden')

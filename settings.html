@@ -248,7 +248,8 @@ async function signOut() {
     const sb = window.supabase.createClient(url, key)
     await sb.auth.signOut().catch(() => {})
   }
-  localStorage.removeItem('gd_me')
+  // 사용자 데이터 초기화 (설정은 기기 공용이므로 유지)
+  ;['gd_me', 'gd_groups', 'gd_bookmarks', 'gd_last_seen', 'gd_cloud'].forEach(k => localStorage.removeItem(k))
   location.href = 'auth.html'
 }
 
