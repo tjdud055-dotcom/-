@@ -54,7 +54,7 @@ const DB = {
     const i = gs.findIndex(x => x.id === g.id)
     if (i >= 0) gs[i] = g; else gs.unshift(g)
     DB._saveGroups(gs)
-    if (DB.isCloudGroup(g.id)) cloudPush(g.id).catch(() => {})
+    cloudPush(g.id).catch(() => {})
   },
   deleteGroup(id) { DB._saveGroups(DB.getGroups().filter(g => g.id !== id)) },
 
@@ -191,8 +191,12 @@ async function _getSB() {
 async function cloudPush(groupId) {
   const sb = await _getSB(); if (!sb) return false
   const g = DB.getGroup(groupId); if (!g) return false
+  const now = new Date().toISOString()
+  g._updatedAt = now
+  const gs = DB.getGroups(); const i = gs.findIndex(x => x.id === groupId)
+  if (i >= 0) { gs[i] = g; DB._saveGroups(gs) }
   const { error } = await sb.from('gd_groups')
-    .upsert({ id: groupId, data: g, updated_at: new Date().toISOString() }, { onConflict: 'id' })
+    .upsert({ id: groupId, data: g, updated_at: now }, { onConflict: 'id' })
   return !error
 }
 
@@ -212,6 +216,48 @@ async function cloudPull(groupId) {
   const gs = DB.getGroups().filter(x => x.id !== g.id)
   gs.unshift(g); DB._saveGroups(gs)
   return g
+}
+
+// 현재 사용자가 속한 그룹을 Supabase에서 가져와 localStorage와 병합
+async function syncFromCloud() {
+  const me = DB.getMe(); if (!me) return false
+  const sb = await _getSB(); if (!sb) return false
+  const { data, error } = await sb
+    .from('gd_groups')
+    .select('id, data, updated_at')
+    .order('updated_at', { ascending: false })
+    .limit(200)
+  if (error || !data) return false
+
+  const myUserId = me.userId
+  const myName   = me.name
+  let changed = false
+
+  for (const row of data) {
+    const g = row.data
+    if (!g?.members) continue
+    const isMember = g.members.some(m =>
+      (myUserId && m.userId === myUserId) || m.name === myName
+    )
+    if (!isMember) continue
+
+    g.members = g.members.map(m => ({
+      ...m,
+      isMe: myUserId ? m.userId === myUserId : m.name === myName
+    }))
+
+    const local = DB.getGroup(g.id)
+    const cloudTs = new Date(row.updated_at || 0).getTime()
+    const localTs = new Date(local?._updatedAt || 0).getTime()
+    if (!local || cloudTs > localTs) {
+      g._updatedAt = row.updated_at
+      const gs = DB.getGroups().filter(x => x.id !== g.id)
+      gs.unshift(g)
+      DB._saveGroups(gs)
+      changed = true
+    }
+  }
+  return changed
 }
 
 let _realtimeCh = null

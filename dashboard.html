@@ -108,7 +108,10 @@ function render() {
   document.getElementById('completed-count').textContent = `(${completed.length})`
   document.getElementById('completed-list').innerHTML = completed.map(groupCardHTML).join('')
 }
+
+// 로컬 데이터로 먼저 빠르게 렌더, 이후 Supabase 동기화
 render()
+syncFromCloud().then(changed => { if (changed) render() }).catch(() => {})
 
 // 그룹 가져오기
 document.getElementById('import-file').addEventListener('change', async e => {
