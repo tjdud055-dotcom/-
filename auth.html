@@ -26,6 +26,7 @@
 
     <div id="msg" class="hidden mb-4 text-sm"></div>
 
+    <!-- 로그인 / 회원가입 폼 -->
     <form id="auth-form" class="fields">
       <div id="username-field" class="field hidden">
         <label class="label">닉네임</label>
@@ -40,7 +41,39 @@
         <input id="password" class="input" type="password" placeholder="6자 이상" required minlength="6">
       </div>
       <button type="submit" id="auth-btn" class="btn btn-primary btn-block">로그인</button>
+      <div id="forgot-wrap" class="text-center" style="margin-top:-4px">
+        <button type="button" onclick="showForgot()" class="text-xs text-lt" style="background:none;border:none;cursor:pointer;text-decoration:underline">비밀번호를 잊으셨나요?</button>
+      </div>
     </form>
+
+    <!-- 비밀번호 재설정 -->
+    <div id="forgot-panel" class="hidden">
+      <p class="font-semi mb-1">비밀번호 재설정</p>
+      <p class="text-sm text-mid mb-4">가입한 이메일을 입력하면 재설정 링크를 보내드려요.</p>
+      <div id="forgot-msg" class="hidden mb-3 text-sm"></div>
+      <div class="fields">
+        <div class="field">
+          <label class="label">이메일</label>
+          <input id="reset-email" class="input" type="email" placeholder="email@example.com">
+        </div>
+        <button onclick="sendResetEmail()" id="reset-btn" class="btn btn-primary btn-block">재설정 이메일 보내기</button>
+        <button type="button" onclick="showLogin()" class="text-xs text-lt text-center" style="background:none;border:none;cursor:pointer;text-decoration:underline">← 로그인으로 돌아가기</button>
+      </div>
+    </div>
+
+    <!-- 새 비밀번호 설정 (재설정 링크 클릭 후) -->
+    <div id="reset-panel" class="hidden">
+      <p class="font-semi mb-1">새 비밀번호 설정</p>
+      <p class="text-sm text-mid mb-4">새로 사용할 비밀번호를 입력해주세요.</p>
+      <div id="reset-msg" class="hidden mb-3 text-sm"></div>
+      <div class="fields">
+        <div class="field">
+          <label class="label">새 비밀번호</label>
+          <input id="new-password" class="input" type="password" placeholder="6자 이상" minlength="6">
+        </div>
+        <button onclick="updatePassword()" id="update-btn" class="btn btn-primary btn-block">비밀번호 변경</button>
+      </div>
+    </div>
   </div>
 </div>
 
@@ -74,6 +107,15 @@ function setMsg(text, type) {
 
   document.getElementById('auth-card').classList.remove('hidden')
 
+  // 비밀번호 재설정 링크로 진입한 경우 (URL 해시에 type=recovery)
+  const hash = Object.fromEntries(new URLSearchParams(location.hash.slice(1)))
+  if (hash.type === 'recovery' && hash.access_token) {
+    await sb.auth.setSession({ access_token: hash.access_token, refresh_token: hash.refresh_token || '' })
+    showPanel('reset-panel')
+    history.replaceState(null, '', location.pathname + location.search)
+    return
+  }
+
   // 이미 로그인된 경우
   const { data: { session } } = await sb.auth.getSession()
   if (session) {
@@ -83,6 +125,56 @@ function setMsg(text, type) {
     return
   }
 })()
+
+function showPanel(id) {
+  ;['auth-form', 'forgot-panel', 'reset-panel'].forEach(p =>
+    document.getElementById(p).classList.toggle('hidden', p !== id)
+  )
+  setMsg('', '')
+}
+function showForgot() {
+  document.getElementById('forgot-msg').className = 'hidden'
+  document.getElementById('reset-email').value = document.getElementById('email').value
+  showPanel('forgot-panel')
+}
+function showLogin() { showPanel('auth-form') }
+
+async function sendResetEmail() {
+  const email = document.getElementById('reset-email').value.trim()
+  const msgEl = document.getElementById('forgot-msg')
+  const btn = document.getElementById('reset-btn')
+  if (!email) { msgEl.textContent = '이메일을 입력해주세요.'; msgEl.className = 'alert alert-pink mb-3 text-sm'; return }
+  btn.disabled = true; btn.textContent = '전송 중...'
+  const { error } = await sb.auth.resetPasswordForEmail(email, {
+    redirectTo: location.origin + location.pathname.replace(/[^/]*$/, '') + 'auth.html'
+  })
+  btn.disabled = false; btn.textContent = '재설정 이메일 보내기'
+  if (error) {
+    msgEl.textContent = '전송 실패: ' + error.message
+    msgEl.className = 'alert alert-pink mb-3 text-sm'
+  } else {
+    msgEl.textContent = '📩 재설정 링크를 이메일로 보냈어요. 메일함을 확인해주세요.'
+    msgEl.className = 'alert alert-green mb-3 text-sm'
+  }
+}
+
+async function updatePassword() {
+  const pw = document.getElementById('new-password').value
+  const msgEl = document.getElementById('reset-msg')
+  const btn = document.getElementById('update-btn')
+  if (pw.length < 6) { msgEl.textContent = '비밀번호는 6자 이상이어야 해요.'; msgEl.className = 'alert alert-pink mb-3 text-sm'; return }
+  btn.disabled = true; btn.textContent = '변경 중...'
+  const { error } = await sb.auth.updateUser({ password: pw })
+  btn.disabled = false; btn.textContent = '비밀번호 변경'
+  if (error) {
+    msgEl.textContent = '변경 실패: ' + error.message
+    msgEl.className = 'alert alert-pink mb-3 text-sm'
+  } else {
+    msgEl.textContent = '✓ 비밀번호가 변경됐어요!'
+    msgEl.className = 'alert alert-green mb-3 text-sm'
+    setTimeout(() => location.replace('dashboard.html'), 1500)
+  }
+}
 
 // 탭 전환
 document.querySelectorAll('.tab-btn').forEach(btn => {
@@ -97,6 +189,8 @@ document.querySelectorAll('.tab-btn').forEach(btn => {
     document.getElementById('username-field').classList.toggle('hidden', mode !== 'signup')
     document.getElementById('username').required = mode === 'signup'
     document.getElementById('auth-btn').textContent = mode === 'login' ? '로그인' : '가입하기'
+    document.getElementById('forgot-wrap').classList.toggle('hidden', mode !== 'login')
+    showPanel('auth-form')
     setMsg('', '')
   })
 })
