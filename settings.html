@@ -144,11 +144,11 @@ if (key) {
   document.getElementById('api-key').value = key
   document.getElementById('key-status').textContent = '✓ API 키가 등록되어 있어요.'
 }
-// Supabase
+// Supabase (기본값 포함해서 항상 채움)
 const sbUrl = DB.getSupabaseUrl(), sbKey = DB.getSupabaseKey()
-if (sbUrl) document.getElementById('sb-url').value = sbUrl
-if (sbKey) document.getElementById('sb-key').value = sbKey
-if (sbUrl && sbKey) document.getElementById('sb-status').textContent = '✓ Supabase 설정이 등록되어 있어요.'
+document.getElementById('sb-url').value = sbUrl
+document.getElementById('sb-key').value = sbKey
+document.getElementById('sb-status').textContent = '✓ Supabase가 연결되어 있어요.'
 
 async function saveSupabase() {
   const url = document.getElementById('sb-url').value.trim()

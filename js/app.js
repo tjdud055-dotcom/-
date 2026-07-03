@@ -1,3 +1,7 @@
+// ── 앱 기본 Supabase 설정 ────────────────────────────────────────────────────
+const _DEFAULT_SB_URL = 'https://ozepsdefggnzhtaboccn.supabase.co'
+const _DEFAULT_SB_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im96ZXBzZGVmZ2duemh0YWJvY2NuIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODIzOTEwOTUsImV4cCI6MjA5Nzk2NzA5NX0.qCP1i9gRSq4gV4vuD6sFqb2dTBEPwcQVBZvoOhJDQN4'
+
 // ── ID 생성 ─────────────────────────────────────────────────────────────────
 function uid() { return Math.random().toString(36).slice(2,9) + Date.now().toString(36) }
 
@@ -112,8 +116,8 @@ const DB = {
   getKakaoKey()  { return DB._settings().kakaoKey ?? '' },
   setKakaoKey(k) { const s = DB._settings(); s.kakaoKey = k; DB._saveSettings(s) },
 
-  getSupabaseUrl()  { return DB._settings().supabaseUrl ?? '' },
-  getSupabaseKey()  { return DB._settings().supabaseKey ?? '' },
+  getSupabaseUrl()  { return DB._settings().supabaseUrl || _DEFAULT_SB_URL },
+  getSupabaseKey()  { return DB._settings().supabaseKey || _DEFAULT_SB_KEY },
   setSupabase(url, key) {
     const s = DB._settings(); s.supabaseUrl = url; s.supabaseKey = key; DB._saveSettings(s)
   },
@@ -169,8 +173,8 @@ function _paramFromURL(name) {
 
 async function _getSB() {
   if (_sbClient) return _sbClient
-  const url = DB.getSupabaseUrl() || _paramFromURL('sburl')
-  const key = DB.getSupabaseKey() || _paramFromURL('sbkey')
+  const url = DB.getSupabaseUrl() || _paramFromURL('sburl') || _DEFAULT_SB_URL
+  const key = DB.getSupabaseKey() || _paramFromURL('sbkey') || _DEFAULT_SB_KEY
   if (!url || !key) return null
   if (!window.supabase) {
     await new Promise((res, rej) => {
