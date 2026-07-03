@@ -36,66 +36,81 @@
     </div>
   </div>
 
-  <!-- Supabase -->
-  <div class="card mb-4">
-    <p class="font-semi mb-1">클라우드 동기화 (Supabase)</p>
-    <p class="text-sm text-mid mb-3">
-      Supabase 프로젝트 URL과 anon key를 등록하면 그룹을 클라우드에 공유하고 실시간 동기화할 수 있어요.
-    </p>
-    <div class="fields">
-      <div class="field">
-        <label class="label">Project URL</label>
-        <input id="sb-url" class="input" type="text" placeholder="https://xxxx.supabase.co">
+  <!-- 개발자 설정 (숨김) -->
+  <div id="dev-section" class="hidden">
+    <div class="card mb-4" style="border:1.5px dashed var(--border)">
+      <p class="font-semi mb-1" style="font-size:13px">⚙️ 개발자 설정</p>
+      <p class="text-xs text-mid mb-3">일반 사용자에게는 표시되지 않는 섹션이에요.</p>
+      <div class="fields">
+        <div class="field">
+          <label class="label">접근 비밀번호</label>
+          <input id="dev-new-pw" class="input" type="password" placeholder="비워두면 비밀번호 없이 접근">
+        </div>
+        <button onclick="saveDevPw()" class="btn btn-secondary btn-sm" style="align-self:flex-start">비밀번호 저장</button>
       </div>
-      <div class="field">
-        <label class="label">Anon Key</label>
-        <input id="sb-key" class="input" type="password" placeholder="eyJ...">
-      </div>
-      <div class="flex gap-2">
-        <button onclick="saveSupabase()" class="btn btn-primary btn-sm">저장</button>
-        <button onclick="testSupabase()" class="btn btn-secondary btn-sm">연결 테스트</button>
-      </div>
-      <p id="sb-status" class="text-xs text-lt"></p>
     </div>
-  </div>
 
-  <!-- 카카오 API 키 -->
-  <div class="card mb-4">
-    <p class="font-semi mb-1">책 검색 (카카오)</p>
-    <p class="text-sm text-mid mb-3">
-      카카오 REST API 키를 등록하면 한국 책을 훨씬 정확하게 검색할 수 있어요.<br>
-      키 없이도 Google Books로 검색되지만 표지·정확도가 낮을 수 있어요.
-    </p>
-    <div class="fields">
-      <div class="field">
-        <label class="label">Kakao REST API Key</label>
-        <input id="kakao-key" class="input" type="password" placeholder="카카오 REST API 키">
+    <!-- Supabase -->
+    <div class="card mb-4">
+      <p class="font-semi mb-1">클라우드 동기화 (Supabase)</p>
+      <p class="text-sm text-mid mb-3">
+        Supabase 프로젝트 URL과 anon key를 등록하면 그룹을 클라우드에 공유하고 실시간 동기화할 수 있어요.
+      </p>
+      <div class="fields">
+        <div class="field">
+          <label class="label">Project URL</label>
+          <input id="sb-url" class="input" type="text" placeholder="https://xxxx.supabase.co">
+        </div>
+        <div class="field">
+          <label class="label">Anon Key</label>
+          <input id="sb-key" class="input" type="password" placeholder="eyJ...">
+        </div>
+        <div class="flex gap-2">
+          <button onclick="saveSupabase()" class="btn btn-primary btn-sm">저장</button>
+          <button onclick="testSupabase()" class="btn btn-secondary btn-sm">연결 테스트</button>
+        </div>
+        <p id="sb-status" class="text-xs text-lt"></p>
       </div>
-      <div class="flex gap-2">
-        <button onclick="saveKakaoKey()" class="btn btn-primary btn-sm">저장</button>
-        <button onclick="clearKakaoKey()" class="btn btn-secondary btn-sm">삭제</button>
-      </div>
-      <p id="kakao-key-status" class="text-xs text-lt"></p>
     </div>
-  </div>
 
-  <!-- Anthropic API 키 -->
-  <div class="card mb-4">
-    <p class="font-semi mb-1">AI 토론 질문 (선택)</p>
-    <p class="text-sm text-mid mb-3">
-      Anthropic API 키를 등록하면 그룹을 만들 때 AI가 책에 맞는 토론 질문을 자동 생성해줘요.<br>
-      키는 이 기기의 localStorage에만 저장되며 외부로 전송되지 않습니다.
-    </p>
-    <div class="fields">
-      <div class="field">
-        <label class="label">Anthropic API Key</label>
-        <input id="api-key" class="input" type="password" placeholder="sk-ant-...">
+    <!-- 카카오 API 키 -->
+    <div class="card mb-4">
+      <p class="font-semi mb-1">책 검색 (카카오)</p>
+      <p class="text-sm text-mid mb-3">
+        카카오 REST API 키를 등록하면 한국 책을 훨씬 정확하게 검색할 수 있어요.<br>
+        키 없이도 Google Books로 검색되지만 표지·정확도가 낮을 수 있어요.
+      </p>
+      <div class="fields">
+        <div class="field">
+          <label class="label">Kakao REST API Key</label>
+          <input id="kakao-key" class="input" type="password" placeholder="카카오 REST API 키">
+        </div>
+        <div class="flex gap-2">
+          <button onclick="saveKakaoKey()" class="btn btn-primary btn-sm">저장</button>
+          <button onclick="clearKakaoKey()" class="btn btn-secondary btn-sm">삭제</button>
+        </div>
+        <p id="kakao-key-status" class="text-xs text-lt"></p>
       </div>
-      <div class="flex gap-2">
-        <button onclick="saveKey()" class="btn btn-primary btn-sm">저장</button>
-        <button onclick="clearKey()" class="btn btn-secondary btn-sm">삭제</button>
+    </div>
+
+    <!-- Anthropic API 키 -->
+    <div class="card mb-4">
+      <p class="font-semi mb-1">AI 토론 질문 (선택)</p>
+      <p class="text-sm text-mid mb-3">
+        Anthropic API 키를 등록하면 그룹을 만들 때 AI가 책에 맞는 토론 질문을 자동 생성해줘요.<br>
+        키는 이 기기의 localStorage에만 저장되며 외부로 전송되지 않습니다.
+      </p>
+      <div class="fields">
+        <div class="field">
+          <label class="label">Anthropic API Key</label>
+          <input id="api-key" class="input" type="password" placeholder="sk-ant-...">
+        </div>
+        <div class="flex gap-2">
+          <button onclick="saveKey()" class="btn btn-primary btn-sm">저장</button>
+          <button onclick="clearKey()" class="btn btn-secondary btn-sm">삭제</button>
+        </div>
+        <p id="key-status" class="text-xs text-lt"></p>
       </div>
-      <p id="key-status" class="text-xs text-lt"></p>
     </div>
   </div>
 
@@ -144,6 +159,19 @@
     모든 데이터는 이 기기의 브라우저에만 저장됩니다.<br>
     브라우저 데이터 삭제 시 데이터가 사라질 수 있으니 주기적으로 백업하세요.
   </p>
+
+  <!-- 개발자 진입 -->
+  <div id="dev-entry-wrap" style="text-align:center;padding:28px 0 4px">
+    <button onclick="showDevPrompt()" style="background:none;border:none;font-size:10px;color:var(--text-lt);opacity:.3;cursor:pointer;padding:4px 10px;font-family:inherit;letter-spacing:.05em">개발자</button>
+  </div>
+  <div id="dev-prompt" class="hidden" style="background:var(--cream);border-radius:12px;padding:16px;margin-bottom:16px">
+    <p class="text-sm font-semi mb-3">개발자 설정 잠금 해제</p>
+    <div class="flex gap-2">
+      <input id="dev-pw-field" class="input" type="password" placeholder="비밀번호" style="flex:1" onkeydown="if(event.key==='Enter')unlockDev()">
+      <button onclick="unlockDev()" class="btn btn-primary btn-sm">확인</button>
+    </div>
+    <p id="dev-pw-msg" class="text-xs" style="margin-top:6px;min-height:14px"></p>
+  </div>
 </div>
 
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
@@ -202,17 +230,6 @@ async function saveProfile() {
   toast('프로필이 저장됐어요 ✓')
 }
 
-const key = DB.getApiKey()
-if (key) {
-  document.getElementById('api-key').value = key
-  document.getElementById('key-status').textContent = '✓ API 키가 등록되어 있어요.'
-}
-// Supabase (기본값 포함해서 항상 채움)
-const sbUrl = DB.getSupabaseUrl(), sbKey = DB.getSupabaseKey()
-document.getElementById('sb-url').value = sbUrl
-document.getElementById('sb-key').value = sbKey
-document.getElementById('sb-status').textContent = '✓ Supabase가 연결되어 있어요.'
-
 async function saveSupabase() {
   const url = document.getElementById('sb-url').value.trim()
   const key = document.getElementById('sb-key').value.trim()
@@ -229,12 +246,6 @@ async function testSupabase() {
     const { error } = await sb.from('gd_groups').select('id').limit(1)
     st.textContent = error ? `⚠ 연결 실패: ${error.message}` : '✓ 연결 성공!'
   } catch(e) { st.textContent = '⚠ 연결 실패: ' + e.message }
-}
-
-const kakaoKey = DB.getKakaoKey()
-if (kakaoKey) {
-  document.getElementById('kakao-key').value = kakaoKey
-  document.getElementById('kakao-key-status').textContent = '✓ 카카오 키가 등록되어 있어요.'
 }
 
 function saveKakaoKey() {
@@ -307,6 +318,58 @@ async function signOut() {
   // 사용자 데이터 초기화 (설정은 기기 공용이므로 유지)
   ;['gd_me', 'gd_groups', 'gd_bookmarks', 'gd_last_seen', 'gd_cloud', 'gd_onboarded'].forEach(k => localStorage.removeItem(k))
   location.href = 'auth.html'
+}
+
+function showDevPrompt() {
+  const stored = localStorage.getItem('gd_dev_pw')
+  if (stored === null || stored === '') {
+    // 비밀번호 미설정 → 바로 해제
+    openDevSection()
+  } else {
+    const prompt = document.getElementById('dev-prompt')
+    prompt.classList.remove('hidden')
+    document.getElementById('dev-pw-field').value = ''
+    document.getElementById('dev-pw-msg').textContent = ''
+    document.getElementById('dev-pw-field').focus()
+    document.getElementById('dev-entry-wrap').style.display = 'none'
+  }
+}
+
+function unlockDev() {
+  const entered = document.getElementById('dev-pw-field').value
+  const stored  = localStorage.getItem('gd_dev_pw') || ''
+  if (entered === stored) {
+    document.getElementById('dev-prompt').classList.add('hidden')
+    openDevSection()
+  } else {
+    const msg = document.getElementById('dev-pw-msg')
+    msg.textContent = '비밀번호가 틀렸어요.'
+    msg.style.color = '#e87070'
+    document.getElementById('dev-pw-field').value = ''
+    document.getElementById('dev-pw-field').focus()
+  }
+}
+
+function openDevSection() {
+  document.getElementById('dev-section').classList.remove('hidden')
+  document.getElementById('dev-entry-wrap').style.display = 'none'
+  document.getElementById('dev-prompt').classList.add('hidden')
+  // 필드 값 채우기
+  const key = DB.getApiKey()
+  if (key) { document.getElementById('api-key').value = key; document.getElementById('key-status').textContent = '✓ API 키가 등록되어 있어요.' }
+  const sbUrl = DB.getSupabaseUrl(), sbKey = DB.getSupabaseKey()
+  document.getElementById('sb-url').value = sbUrl
+  document.getElementById('sb-key').value = sbKey
+  if (sbUrl) document.getElementById('sb-status').textContent = '✓ Supabase가 연결되어 있어요.'
+  const kakaoKey = DB.getKakaoKey()
+  if (kakaoKey) { document.getElementById('kakao-key').value = kakaoKey; document.getElementById('kakao-key-status').textContent = '✓ 카카오 키가 등록되어 있어요.' }
+}
+
+function saveDevPw() {
+  const pw = document.getElementById('dev-new-pw').value
+  localStorage.setItem('gd_dev_pw', pw)
+  document.getElementById('dev-new-pw').value = ''
+  toast(pw ? '비밀번호가 설정됐어요 ✓' : '비밀번호가 삭제됐어요.')
 }
 
 function clearAll() {
