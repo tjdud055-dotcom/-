@@ -50,6 +50,7 @@
 <script src="js/app.js"></script>
 <script>
 const me = requireProfile(); if (!me) throw 0
+if (!localStorage.getItem('gd_onboarded')) { location.replace('onboarding.html'); throw 0 }
 renderNav('dashboard')
 document.getElementById('welcome').textContent = `안녕하세요, ${me.name} 님 👋`
 

@@ -222,7 +222,7 @@ document.getElementById('auth-form').addEventListener('submit', async e => {
     } else if (data.session) {
       DB.setMe({ name: username, email, userId: data.user.id })
       const next = _paramFromURL('next')
-      location.replace(next ? decodeURIComponent(next) : 'dashboard.html')
+      location.replace(next ? decodeURIComponent(next) : 'onboarding.html')
     } else {
       setMsg('📩 가입 확인 이메일을 보냈어요. 메일함을 확인해주세요.', 'green')
     }

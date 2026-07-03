@@ -249,7 +249,7 @@ async function signOut() {
     await sb.auth.signOut().catch(() => {})
   }
   // 사용자 데이터 초기화 (설정은 기기 공용이므로 유지)
-  ;['gd_me', 'gd_groups', 'gd_bookmarks', 'gd_last_seen', 'gd_cloud'].forEach(k => localStorage.removeItem(k))
+  ;['gd_me', 'gd_groups', 'gd_bookmarks', 'gd_last_seen', 'gd_cloud', 'gd_onboarded'].forEach(k => localStorage.removeItem(k))
   location.href = 'auth.html'
 }
 

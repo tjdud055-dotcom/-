@@ -1,0 +1,271 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>시작하기 — 교환독서</title>
+<link rel="stylesheet" href="css/style.css">
+<style>
+  body { background: #faf8f5; }
+
+  .ob-wrap {
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 24px 20px 40px;
+  }
+
+  .ob-card {
+    width: 100%;
+    max-width: 400px;
+    background: #fff;
+    border-radius: 24px;
+    box-shadow: 0 8px 40px rgba(61,53,48,.10);
+    padding: 40px 32px 32px;
+    position: relative;
+    overflow: hidden;
+  }
+
+  .ob-bg {
+    position: absolute;
+    top: 0; left: 0; right: 0;
+    height: 160px;
+    border-radius: 24px 24px 60% 60% / 24px 24px 40px 40px;
+    transition: background .4s ease;
+  }
+
+  .ob-content {
+    position: relative;
+    z-index: 1;
+  }
+
+  .ob-emoji {
+    font-size: 64px;
+    line-height: 1;
+    display: block;
+    text-align: center;
+    margin-bottom: 20px;
+    margin-top: 60px;
+    animation: obPop .4s cubic-bezier(.34,1.56,.64,1);
+  }
+
+  @keyframes obPop {
+    from { transform: scale(.5); opacity: 0; }
+    to   { transform: scale(1);  opacity: 1; }
+  }
+
+  .ob-title {
+    font-family: 'Georgia', serif;
+    font-size: 22px;
+    font-weight: 600;
+    text-align: center;
+    color: var(--text);
+    margin-bottom: 12px;
+    line-height: 1.4;
+  }
+
+  .ob-desc {
+    font-size: 14px;
+    color: var(--text-mid);
+    text-align: center;
+    line-height: 1.8;
+    margin-bottom: 28px;
+  }
+
+  .ob-features {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    margin-bottom: 28px;
+  }
+
+  .ob-feature {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 10px 14px;
+    border-radius: 12px;
+    background: rgba(0,0,0,.025);
+    font-size: 13px;
+    color: var(--text);
+  }
+
+  .ob-feature-icon {
+    font-size: 20px;
+    flex-shrink: 0;
+  }
+
+  .ob-dots {
+    display: flex;
+    justify-content: center;
+    gap: 6px;
+    margin-bottom: 24px;
+  }
+
+  .ob-dot {
+    width: 8px; height: 8px;
+    border-radius: 50%;
+    background: var(--border);
+    transition: all .3s;
+  }
+
+  .ob-dot.active {
+    width: 24px;
+    border-radius: 4px;
+  }
+
+  .ob-actions {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+  }
+
+  .ob-skip {
+    background: none;
+    border: none;
+    font-family: inherit;
+    font-size: 13px;
+    color: var(--text-lt);
+    cursor: pointer;
+    text-align: center;
+    text-decoration: underline;
+    padding: 4px;
+  }
+
+  .slide-in {
+    animation: slideIn .3s ease;
+  }
+
+  @keyframes slideIn {
+    from { transform: translateX(30px); opacity: 0; }
+    to   { transform: translateX(0);    opacity: 1; }
+  }
+</style>
+</head>
+<body>
+<div class="ob-wrap">
+  <div class="ob-card">
+    <div class="ob-bg" id="ob-bg"></div>
+    <div class="ob-content" id="ob-content"></div>
+  </div>
+</div>
+
+<script src="js/app.js"></script>
+<script>
+const me = requireProfile(); if (!me) throw 0
+
+const STEPS = [
+  {
+    bg: 'linear-gradient(135deg, #B8D4E8 0%, #D4C5F0 100%)',
+    dot: '#B8D4E8',
+    emoji: '📚',
+    title: '교환독서에\n오신 걸 환영해요!',
+    desc: '책을 함께 읽고, 좋아하는 구절을 나누고,\n독서 경험을 함께 쌓아가는 공간이에요.',
+    features: null,
+    final: false,
+  },
+  {
+    bg: 'linear-gradient(135deg, #F2C4CE 0%, #F5D5C0 100%)',
+    dot: '#F2C4CE',
+    emoji: '👥',
+    title: '독서 그룹을\n만들어보세요',
+    desc: null,
+    features: [
+      { icon: '📖', text: '읽고 싶은 책을 검색해서 선택해요' },
+      { icon: '🔗', text: '초대 링크로 친구를 그룹에 초대해요' },
+      { icon: '🌐', text: '공개 모집으로 새 멤버를 모집할 수도 있어요' },
+    ],
+    final: false,
+  },
+  {
+    bg: 'linear-gradient(135deg, #C5E8C0 0%, #B8E8D4 100%)',
+    dot: '#C5E8C0',
+    emoji: '✏️',
+    title: '마음에 드는 구절을\n올려보세요',
+    desc: null,
+    features: [
+      { icon: '💬', text: '구절에 댓글과 답글로 생각을 나눠요' },
+      { icon: '⭐', text: '마음에 드는 구절을 북마크로 저장해요' },
+      { icon: '📊', text: '독서 통계로 나의 독서 기록을 확인해요' },
+    ],
+    final: false,
+  },
+  {
+    bg: 'linear-gradient(135deg, #D4C5F0 0%, #E8C5D4 100%)',
+    dot: '#D4C5F0',
+    emoji: '🎉',
+    title: '이제 함께\n읽어볼까요?',
+    desc: '그룹을 만들거나 탐색 페이지에서\n공개 그룹에 참여해보세요.',
+    features: null,
+    final: true,
+  },
+]
+
+let current = 0
+
+function render(idx, animate = false) {
+  const s = STEPS[idx]
+  document.getElementById('ob-bg').style.background = s.bg
+
+  const dotsHTML = STEPS.map((_, i) => `
+    <div class="ob-dot ${i === idx ? 'active' : ''}" style="${i === idx ? `background:${s.dot}` : ''}"></div>
+  `).join('')
+
+  const featuresHTML = s.features ? `
+    <div class="ob-features">
+      ${s.features.map(f => `
+        <div class="ob-feature">
+          <span class="ob-feature-icon">${f.icon}</span>
+          <span>${f.text}</span>
+        </div>
+      `).join('')}
+    </div>
+  ` : ''
+
+  const descHTML = s.desc ? `<p class="ob-desc">${s.desc.replace(/\n/g, '<br>')}</p>` : ''
+
+  const actionsHTML = s.final ? `
+    <a href="new-group.html" onclick="finish()" class="btn btn-primary btn-block">그룹 만들러 가기 →</a>
+    <a href="explore.html" onclick="finish()" class="btn btn-secondary btn-block">공개 그룹 탐색하기</a>
+    <a href="dashboard.html" onclick="finish()" class="ob-skip">먼저 둘러볼게요</a>
+  ` : `
+    <button onclick="next()" class="btn btn-primary btn-block">다음 →</button>
+    <button onclick="finish()" class="ob-skip">건너뛰기</button>
+  `
+
+  document.getElementById('ob-content').innerHTML = `
+    <div class="${animate ? 'slide-in' : ''}">
+      <div class="ob-dots">${dotsHTML}</div>
+      <span class="ob-emoji">${s.emoji}</span>
+      <h1 class="ob-title">${s.title.replace(/\n/g, '<br>')}</h1>
+      ${descHTML}
+      ${featuresHTML}
+      <div class="ob-actions">${actionsHTML}</div>
+    </div>
+  `
+}
+
+function next() {
+  if (current < STEPS.length - 1) {
+    current++
+    render(current, true)
+  }
+}
+
+function finish() {
+  localStorage.setItem('gd_onboarded', '1')
+}
+
+// 스와이프 지원
+let touchStartX = 0
+document.addEventListener('touchstart', e => { touchStartX = e.touches[0].clientX })
+document.addEventListener('touchend', e => {
+  const dx = e.changedTouches[0].clientX - touchStartX
+  if (dx < -50 && current < STEPS.length - 1) { current++; render(current, true) }
+  if (dx > 50  && current > 0)               { current--; render(current, true) }
+})
+
+render(0)
+</script>
+</body></html>
