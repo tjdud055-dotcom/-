@@ -82,18 +82,14 @@
   <!-- Step 3 -->
   <div id="step3" class="hidden">
     <div class="card mb-3">
-      <p class="font-semi mb-3">멤버를 추가하세요</p>
-      <p class="text-sm text-mid mb-4">나(본인)는 자동으로 포함됩니다. 함께 읽는 멤버 이름을 추가해주세요.</p>
-
-      <!-- 내 이름 (고정) -->
-      <div id="member-list" style="display:flex;flex-direction:column;gap:8px;margin-bottom:12px"></div>
-
-      <!-- 추가 인풋 -->
-      <div id="add-member-wrap" class="flex gap-2">
-        <input id="member-name" class="input flex-1" placeholder="멤버 이름 입력..." maxlength="20">
-        <button onclick="addMember()" class="btn btn-secondary shrink-0">추가</button>
+      <p class="font-semi mb-3">멤버 초대</p>
+      <div style="display:flex;flex-direction:column;align-items:center;gap:12px;padding:16px 0;text-align:center">
+        <div style="font-size:40px">🔗</div>
+        <p class="text-sm text-mid" style="line-height:1.7">
+          그룹을 만들면 <strong>초대 링크</strong>가 생성됩니다.<br>
+          링크를 멤버들에게 공유해서 초대하세요.
+        </p>
       </div>
-      <p id="member-count-msg" class="text-xs text-lt mt-2"></p>
     </div>
 
     <div id="create-err" class="alert alert-pink hidden text-sm mb-3"></div>
@@ -197,40 +193,9 @@ document.getElementById('to3').addEventListener('click', () => {
   const deadline = document.getElementById('g-deadline').value
   if (!name) { toast('그룹 이름을 입력해주세요.'); return }
   if (!deadline) { toast('완독 기한을 선택해주세요.'); return }
-  renderMemberList()
   goStep(3)
 })
 
-// ── 멤버 ─────────────────────────────────────────────────────────────────────
-function renderMemberList() {
-  const max = parseInt(document.getElementById('g-max').value)
-  document.getElementById('add-member-wrap').classList.toggle('hidden', members.length >= max)
-  document.getElementById('member-count-msg').textContent = `${members.length}/${max}명`
-  document.getElementById('member-list').innerHTML = members.map((m, i) => `
-    <div class="flex items-center gap-2 p-2 rounded-xl" style="background:${m.isMe?'rgba(184,212,232,.2)':'rgba(245,245,245,.8)'}">
-      <div class="avatar" style="${avatarStyle(i, m.isMe)}">
-        ${m.name[0]}
-      </div>
-      <span class="text-sm flex-1">${m.name}</span>
-      ${m.isMe ? '<span class="badge badge-blue text-xs">나</span>' : `<button onclick="removeMember('${m.id}')" style="background:none;border:none;cursor:pointer;color:var(--text-lt);font-size:18px;line-height:1">×</button>`}
-    </div>`).join('')
-}
-
-function addMember() {
-  const max = parseInt(document.getElementById('g-max').value)
-  if (members.length >= max) { toast(`최대 ${max}명까지 추가할 수 있어요.`); return }
-  const name = document.getElementById('member-name').value.trim()
-  if (!name) return
-  if (members.some(m => m.name === name)) { toast('이미 있는 이름이에요.'); return }
-  members.push({ id: uid(), name, isMe: false, hasCompleted: false, completedAt: null })
-  document.getElementById('member-name').value = ''
-  renderMemberList()
-}
-function removeMember(id) {
-  members = members.filter(m => m.id !== id)
-  renderMemberList()
-}
-document.getElementById('member-name').addEventListener('keydown', e => e.key==='Enter' && (e.preventDefault(), addMember()))
 
 // ── 그룹 생성 ────────────────────────────────────────────────────────────────
 async function createGroup() {
