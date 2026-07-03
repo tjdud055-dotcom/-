@@ -262,6 +262,7 @@ function renderNav(active) {
   nav.innerHTML = `
     <a href="dashboard.html" class="nav-logo">교환독서</a>
     <a href="dashboard.html" class="nav-link ${active==='dashboard'?'active':''}">내 그룹</a>
+    <a href="explore.html"   class="nav-link ${active==='explore'?'active':''}">탐색</a>
     <a href="stats.html"     class="nav-link ${active==='stats'?'active':''}">통계</a>
     <a href="settings.html"  class="nav-link ${active==='settings'?'active':''}">설정</a>
     ${me ? `<div class="nav-avatar">${me.name[0]}</div>` : ''}

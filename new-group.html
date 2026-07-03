@@ -54,6 +54,19 @@
         <input type="hidden" id="g-color" value="#B8D4E8">
         <div id="color-picker" style="display:flex;gap:8px;flex-wrap:wrap"></div>
       </div>
+      <div class="field">
+        <label class="label">공개 모집</label>
+        <div style="display:flex;flex-direction:column;gap:8px">
+          <label style="display:flex;align-items:center;gap:10px;cursor:pointer;padding:10px 14px;border-radius:10px;border:1.5px solid var(--border);transition:all .15s" id="lbl-private">
+            <input type="radio" name="visibility" value="private" id="v-private" checked style="accent-color:var(--blue-dk)">
+            <div><p class="text-sm font-semi">🔒 비공개</p><p class="text-xs text-lt">초대 링크로만 참여 가능</p></div>
+          </label>
+          <label style="display:flex;align-items:center;gap:10px;cursor:pointer;padding:10px 14px;border-radius:10px;border:1.5px solid var(--border);transition:all .15s" id="lbl-public">
+            <input type="radio" name="visibility" value="public" id="v-public" style="accent-color:var(--blue-dk)">
+            <div><p class="text-sm font-semi">🌐 공개 모집</p><p class="text-xs text-lt">탐색 페이지에 공개되어 누구나 참여 신청 가능</p></div>
+          </label>
+        </div>
+      </div>
       <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px">
         <div class="field">
           <label class="label">완독 기한 *</label>
@@ -131,6 +144,14 @@ document.getElementById('g-deadline').min = minDate(3)
 let selBook = null
 let members = [{ id: uid(), name: me.name, isMe: true, userId: me.userId || null, hasCompleted: false, completedAt: null }]
 
+// 공개/비공개 라디오 스타일
+document.querySelectorAll('input[name="visibility"]').forEach(radio => {
+  radio.addEventListener('change', () => {
+    document.getElementById('lbl-private').style.borderColor = document.getElementById('v-private').checked ? 'var(--blue-dk)' : 'var(--border)'
+    document.getElementById('lbl-public').style.borderColor  = document.getElementById('v-public').checked  ? 'var(--blue-dk)' : 'var(--border)'
+  })
+})
+
 // ── Step 전환 ───────────────────────────────────────────────────────────────
 function goStep(n) {
   [1,2,3].forEach(i => {
@@ -204,6 +225,7 @@ async function createGroup() {
   btn.disabled = true; btn.textContent = '생성 중...'
   err.classList.add('hidden')
 
+  const isPublic = document.getElementById('v-public').checked
   const group = {
     id: uid(),
     name: document.getElementById('g-name').value.trim(),
@@ -217,11 +239,19 @@ async function createGroup() {
     quotes: [],
     questions: [],
     status: 'reading',
+    isPublic,
     createdAt: new Date().toISOString(),
   }
 
   DB.saveGroup(group)
   DB.setLastSeen(group.id)
+
+  // 공개 그룹이면 Supabase에 자동 업로드
+  if (isPublic && DB.getSupabaseUrl()) {
+    btn.textContent = '업로드 중...'
+    await cloudPush(group.id).catch(() => {})
+    DB.setCloudGroup(group.id, true)
+  }
 
   // AI 질문 생성 시도 (API 키가 있을 때만)
   if (DB.getApiKey()) {

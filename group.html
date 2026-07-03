@@ -159,10 +159,14 @@ function render() {
 
         <!-- 클라우드 / 내보내기 / 삭제 -->
         ${DB.getSupabaseUrl() ? `
-        <button onclick="toggleCloud()" id="cloud-btn" class="btn btn-sm flex-1 ${DB.isCloudGroup(g.id)
-          ? 'btn-primary' : 'btn-secondary'}">
-          ${DB.isCloudGroup(g.id) ? '☁️ 동기화 중' : '☁️ 클라우드 공유'}
-        </button>` : ''}
+        <div class="flex gap-2">
+          <button onclick="toggleCloud()" id="cloud-btn" class="btn btn-sm flex-1 ${DB.isCloudGroup(g.id) ? 'btn-primary' : 'btn-secondary'}">
+            ${DB.isCloudGroup(g.id) ? '☁️ 동기화 중' : '☁️ 클라우드 공유'}
+          </button>
+          <button onclick="togglePublic()" class="btn btn-sm flex-1 ${g.isPublic ? 'btn-primary' : 'btn-secondary'}">
+            ${g.isPublic ? '🌐 공개 모집 중' : '🔒 비공개'}
+          </button>
+        </div>` : ''}
         <div class="flex gap-2">
           ${DB.getSupabaseUrl() ? `<button onclick="generateInviteLink()" class="btn btn-secondary btn-sm flex-1">🔗 초대 링크</button>` : ''}
           <button onclick="exportGroup('${g.id}')" class="btn btn-secondary btn-sm flex-1">📤 내보내기</button>
@@ -345,6 +349,24 @@ async function toggleCloud() {
   cloudSubscribe(id, () => { toast('☁️ 멤버가 업데이트했어요'); render() })
   render()
   toast('☁️ 클라우드 공유 시작! 링크를 멤버에게 보내세요')
+}
+
+async function togglePublic() {
+  const g = DB.getGroup(id); if (!g) return
+  const next = !g.isPublic
+  g.isPublic = next
+  DB.saveGroup(g)
+  if (next) {
+    // 공개로 전환 시 클라우드에 업로드
+    const ok = await cloudPush(id).catch(() => false)
+    if (!ok) { toast('Supabase 연결 실패. 설정을 확인해주세요.'); g.isPublic = false; DB.saveGroup(g); render(); return }
+    DB.setCloudGroup(id, true)
+    toast('🌐 공개 모집으로 전환됐어요. 탐색 페이지에 노출됩니다.')
+  } else {
+    await cloudPush(id).catch(() => {})
+    toast('🔒 비공개로 전환됐어요.')
+  }
+  render()
 }
 
 async function generateInviteLink() {
