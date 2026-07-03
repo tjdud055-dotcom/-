@@ -120,7 +120,7 @@ function setMsg(text, type) {
   const { data: { session } } = await sb.auth.getSession()
   if (session) {
     const meta = session.user.user_metadata
-    DB.setMe({ name: meta.username || meta.name || session.user.email.split('@')[0], email: session.user.email, userId: session.user.id })
+    DB.setMe({ name: meta.username || meta.name || session.user.email.split('@')[0], email: session.user.email, userId: session.user.id, bio: meta.bio || '', profileColor: meta.profileColor || '' })
     location.replace('dashboard.html')
     return
   }
@@ -233,7 +233,7 @@ document.getElementById('auth-form').addEventListener('submit', async e => {
     } else {
       const meta = data.user.user_metadata
       const name = meta.username || meta.name || email.split('@')[0]
-      DB.setMe({ name, email, userId: data.user.id })
+      DB.setMe({ name, email, userId: data.user.id, bio: meta.bio || '', profileColor: meta.profileColor || '' })
       const next = _paramFromURL('next')
       location.replace(next ? decodeURIComponent(next) : 'dashboard.html')
     }

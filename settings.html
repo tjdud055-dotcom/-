@@ -13,12 +13,26 @@
   <!-- 프로필 -->
   <div class="card mb-4">
     <p class="font-semi mb-3">내 정보</p>
+    <div style="display:flex;justify-content:center;margin-bottom:20px">
+      <div id="avatar-preview" style="width:72px;height:72px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:28px;font-weight:600;color:rgba(0,0,0,.45);transition:background .25s;user-select:none"></div>
+    </div>
     <div class="fields">
       <div class="field">
         <label class="label">닉네임</label>
-        <input id="my-name" class="input" type="text" maxlength="20" required>
+        <input id="my-name" class="input" type="text" maxlength="20" required oninput="updateAvatar()">
       </div>
-      <button onclick="saveName()" class="btn btn-primary btn-sm" style="align-self:flex-start">저장</button>
+      <div class="field">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px">
+          <label class="label" style="margin-bottom:0">한 줄 소개</label>
+          <span id="bio-count" class="text-xs text-lt">0/60</span>
+        </div>
+        <input id="my-bio" class="input" type="text" maxlength="60" placeholder="나를 소개해보세요" oninput="document.getElementById('bio-count').textContent=this.value.length+'/60'">
+      </div>
+      <div class="field">
+        <label class="label" style="margin-bottom:8px">프로필 색상</label>
+        <div id="color-picker" style="display:flex;gap:8px;flex-wrap:wrap"></div>
+      </div>
+      <button onclick="saveProfile()" class="btn btn-primary btn-sm" style="align-self:flex-start">저장</button>
     </div>
   </div>
 
@@ -138,7 +152,56 @@
 const me = requireProfile(); if (!me) throw 0
 renderNav('settings')
 
+const PROFILE_COLORS = [
+  { name: '로즈',   value: '#F2C4CE' },
+  { name: '라벤더', value: '#D4C5F0' },
+  { name: '민트',   value: '#B8E8D4' },
+  { name: '피치',   value: '#F5D5C0' },
+  { name: '스카이', value: '#B8D4E8' },
+  { name: '라일락', value: '#E8C5D4' },
+  { name: '옐로우', value: '#F5E6A3' },
+]
+let selectedColor = me.profileColor || '#D4C5F0'
+
+function renderColorPicker() {
+  document.getElementById('color-picker').innerHTML = PROFILE_COLORS.map(c => `
+    <button type="button" onclick="selectColor('${c.value}')" title="${c.name}"
+      style="width:34px;height:34px;border-radius:50%;background:${c.value};border:${selectedColor===c.value?'3px solid #6b5e52':'2px solid rgba(0,0,0,.08)'};box-shadow:${selectedColor===c.value?'0 0 0 3px '+c.value:'none'};cursor:pointer;transition:all .15s;flex-shrink:0"></button>
+  `).join('')
+}
+
+function selectColor(color) {
+  selectedColor = color
+  renderColorPicker()
+  updateAvatar()
+}
+
+function updateAvatar() {
+  const name = document.getElementById('my-name').value.trim() || me.name
+  const el = document.getElementById('avatar-preview')
+  el.textContent = name.charAt(0).toUpperCase()
+  el.style.background = selectedColor
+}
+
 document.getElementById('my-name').value = me.name
+document.getElementById('my-bio').value = me.bio || ''
+document.getElementById('bio-count').textContent = (me.bio || '').length + '/60'
+renderColorPicker()
+updateAvatar()
+
+async function saveProfile() {
+  const name = document.getElementById('my-name').value.trim()
+  const bio  = document.getElementById('my-bio').value.trim()
+  if (!name) { toast('닉네임을 입력해주세요.'); return }
+  DB.setMe({ ...DB.getMe(), name, bio, profileColor: selectedColor })
+  try {
+    const sbClient = window.supabase.createClient(DB.getSupabaseUrl(), DB.getSupabaseKey())
+    const { data: { session } } = await sbClient.auth.getSession()
+    if (session) await sbClient.auth.updateUser({ data: { username: name, bio, profileColor: selectedColor } })
+  } catch(_) {}
+  toast('프로필이 저장됐어요 ✓')
+}
+
 const key = DB.getApiKey()
 if (key) {
   document.getElementById('api-key').value = key
@@ -185,13 +248,6 @@ function clearKakaoKey() {
   document.getElementById('kakao-key').value = ''
   document.getElementById('kakao-key-status').textContent = '키가 삭제됐어요.'
   toast('카카오 API 키가 삭제됐어요.')
-}
-
-function saveName() {
-  const name = document.getElementById('my-name').value.trim()
-  if (!name) { toast('닉네임을 입력해주세요.'); return }
-  DB.setMe({ ...DB.getMe(), name })
-  toast('저장됐어요 ✓')
 }
 
 function saveKey() {
