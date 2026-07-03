@@ -174,10 +174,14 @@ function render() {
         </div>
         <div id="invite-box" class="hidden">
           <p class="text-xs text-mid mb-1">🔗 아래 링크로 멤버를 초대하세요</p>
-          <div class="flex gap-2">
+          <div class="flex gap-2 mb-2">
             <input id="invite-url" class="input" style="font-size:12px;padding:6px 10px" readonly>
             <button onclick="copyInviteLink()" class="btn btn-secondary btn-sm shrink-0">복사</button>
           </div>
+          <button onclick="shareKakao()" style="width:100%;padding:9px;border:none;border-radius:10px;background:#FEE500;color:#191919;font-family:inherit;font-size:13px;font-weight:600;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:6px">
+            <svg width="18" height="18" viewBox="0 0 18 18" fill="none"><ellipse cx="9" cy="8.5" rx="8" ry="7" fill="#191919"/><path d="M5 10.5c.3.5 2 1.5 4 1.5s3.7-1 4-1.5M5 7.5c.5-.8 1.8-1.5 4-1.5s3.5.7 4 1.5" stroke="#FEE500" stroke-width="1.3" stroke-linecap="round"/></svg>
+            카카오톡으로 공유
+          </button>
         </div>
         <div id="share-box" ${DB.isCloudGroup(g.id) ? '' : 'class="hidden"'}>
           <p class="text-xs text-mid mb-1">아래 링크를 멤버들에게 공유하세요</p>
@@ -389,6 +393,29 @@ async function copyInviteLink() {
   if (!url) return
   try { await navigator.clipboard.writeText(url); toast('초대 링크가 복사됐어요 ✓') }
   catch { const el = document.getElementById('invite-url'); el.select(); document.execCommand('copy'); toast('초대 링크가 복사됐어요 ✓') }
+}
+
+async function shareKakao() {
+  const url = document.getElementById('invite-url')?.value
+  if (!url) { toast('먼저 초대 링크를 생성해주세요.'); return }
+  const g = DB.getGroup(id)
+  const title = g ? `'${g.name}' 독서 그룹 초대` : '교환독서 그룹 초대'
+  const text  = g ? `📖 '${g.book?.title}' 함께 읽어요! 아래 링크로 참여하세요.` : '교환독서 그룹에 초대합니다!'
+
+  if (navigator.share) {
+    try { await navigator.share({ title, text, url }) } catch(e) {
+      if (e.name !== 'AbortError') { await copyInviteLink() }
+    }
+  } else {
+    // 모바일 카카오톡 앱 URL 스킴 시도, 안 되면 링크 복사
+    const encoded = encodeURIComponent(`${text}\n${url}`)
+    const kakaoUrl = `kakaotalk://msg/send?msg=${encoded}`
+    const a = document.createElement('a'); a.href = kakaoUrl; a.click()
+    setTimeout(async () => {
+      await copyInviteLink()
+      toast('카카오톡이 없으면 복사된 링크를 붙여넣기하세요.')
+    }, 500)
+  }
 }
 
 async function copyShareUrl() {
