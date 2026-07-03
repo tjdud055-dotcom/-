@@ -1,8 +1,8 @@
-<!DOCTYPE html>
+﻿<!DOCTYPE html>
 <html lang="ko">
 <head>
 <meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-<title>그룹 — 교환독서</title>
+<title>그룹 — Bookling</title>
 <link rel="stylesheet" href="css/style.css">
 </head>
 <body>
@@ -390,8 +390,8 @@ async function shareKakao() {
   const url = document.getElementById('invite-url')?.value
   if (!url) { toast('먼저 초대 링크를 생성해주세요.'); return }
   const g = DB.getGroup(id)
-  const title = g ? `'${g.name}' 독서 그룹 초대` : '교환독서 그룹 초대'
-  const text  = g ? `📖 '${g.book?.title}' 함께 읽어요! 아래 링크로 참여하세요.` : '교환독서 그룹에 초대합니다!'
+  const title = g ? `'${g.name}' 독서 그룹 초대` : 'Bookling 그룹 초대'
+  const text  = g ? `📖 '${g.book?.title}' 함께 읽어요! 아래 링크로 참여하세요.` : 'Bookling 그룹에 초대합니다!'
 
   if (navigator.share) {
     try { await navigator.share({ title, text, url }) } catch(e) {

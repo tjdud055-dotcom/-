@@ -1,4 +1,4 @@
-// ── 앱 기본 Supabase 설정 ────────────────────────────────────────────────────
+﻿// ── 앱 기본 Supabase 설정 ────────────────────────────────────────────────────
 const _DEFAULT_SB_URL = 'https://ozepsdefggnzhtaboccn.supabase.co'
 const _DEFAULT_SB_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im96ZXBzZGVmZ2duemh0YWJvY2NuIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODIzOTEwOTUsImV4cCI6MjA5Nzk2NzA5NX0.qCP1i9gRSq4gV4vuD6sFqb2dTBEPwcQVBZvoOhJDQN4'
 
@@ -310,7 +310,7 @@ function renderNav(active) {
   const nav = document.querySelector('.nav-inner')
   if (!nav) return
   nav.innerHTML = `
-    <a href="dashboard.html" class="nav-logo">교환독서</a>
+    <a href="dashboard.html" class="nav-logo">Bookling</a>
     <a href="dashboard.html" class="nav-link ${active==='dashboard'?'active':''}">내 그룹</a>
     <a href="explore.html"   class="nav-link ${active==='explore'?'active':''}">탐색</a>
     <a href="stats.html"     class="nav-link ${active==='stats'?'active':''}">통계</a>
@@ -460,7 +460,7 @@ function exportGroup(groupId) {
   const blob = new Blob([json], { type: 'application/json' })
   const a = document.createElement('a')
   a.href = URL.createObjectURL(blob)
-  a.download = `${g.name}-교환독서.json`
+  a.download = `${g.name}-Bookling.json`
   a.click()
 }
 

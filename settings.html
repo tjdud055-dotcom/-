@@ -1,8 +1,8 @@
-<!DOCTYPE html>
+﻿<!DOCTYPE html>
 <html lang="ko">
 <head>
 <meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-<title>설정 — 교환독서</title>
+<title>설정 — Bookling</title>
 <link rel="stylesheet" href="css/style.css">
 </head>
 <body>
@@ -302,7 +302,7 @@ function exportAll() {
   const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' })
   const a = document.createElement('a')
   a.href = URL.createObjectURL(blob)
-  a.download = `교환독서-백업-${new Date().toLocaleDateString('ko-KR').replace(/\./g,'-').trim()}.json`
+  a.download = `Bookling-백업-${new Date().toLocaleDateString('ko-KR').replace(/\./g,'-').trim()}.json`
   a.click()
   toast('내보내기 완료 ✓')
 }
