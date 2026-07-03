@@ -98,10 +98,7 @@
       <p class="font-semi mb-3">멤버 초대</p>
       <div style="display:flex;flex-direction:column;align-items:center;gap:12px;padding:16px 0;text-align:center">
         <div style="font-size:40px">🔗</div>
-        <p class="text-sm text-mid" style="line-height:1.7">
-          그룹을 만들면 <strong>초대 링크</strong>가 생성됩니다.<br>
-          링크를 멤버들에게 공유해서 초대하세요.
-        </p>
+        <p id="step3-msg" class="text-sm text-mid" style="line-height:1.7"></p>
       </div>
     </div>
 
@@ -214,6 +211,10 @@ document.getElementById('to3').addEventListener('click', () => {
   const deadline = document.getElementById('g-deadline').value
   if (!name) { toast('그룹 이름을 입력해주세요.'); return }
   if (!deadline) { toast('완독 기한을 선택해주세요.'); return }
+  const isPublicStep = document.getElementById('v-public').checked
+  document.getElementById('step3-msg').innerHTML = isPublicStep
+    ? '탐색 페이지에 공개되어 <strong>누구나 참여 신청</strong>할 수 있어요.<br>초대 링크도 함께 생성됩니다.'
+    : '그룹을 만들면 <strong>초대 링크</strong>가 생성됩니다.<br>링크를 멤버들에게 공유해서 초대하세요.'
   goStep(3)
 })
 
