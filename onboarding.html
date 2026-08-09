@@ -262,9 +262,9 @@ function render(idx, animate = false) {
   const customHTML = s.html || ''
 
   const actionsHTML = s.final ? `
-    <a href="new-group.html" onclick="finish()" class="btn btn-primary btn-block">그룹 만들러 가기 →</a>
-    <a href="explore.html" onclick="finish()" class="btn btn-secondary btn-block">공개 그룹 탐색하기</a>
-    <a href="dashboard.html" onclick="finish()" class="ob-skip">먼저 둘러볼게요</a>
+    <a href="new-group.html" onclick="markOnboarded()" class="btn btn-primary btn-block">그룹 만들러 가기 →</a>
+    <a href="explore.html" onclick="markOnboarded()" class="btn btn-secondary btn-block">공개 그룹 탐색하기</a>
+    <a href="dashboard.html" onclick="markOnboarded()" class="ob-skip">먼저 둘러볼게요</a>
   ` : `
     <button onclick="next()" class="btn btn-primary btn-block">다음 →</button>
     <button onclick="finish()" class="ob-skip">건너뛰기</button>
@@ -290,8 +290,12 @@ function next() {
   }
 }
 
-function finish() {
+function markOnboarded() {
   localStorage.setItem('gd_onboarded', '1')
+}
+function finish() {
+  markOnboarded()
+  location.href = 'dashboard.html'
 }
 
 // 스와이프 지원
