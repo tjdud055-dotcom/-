@@ -57,11 +57,13 @@ const DB = {
     cloudPush(g.id).catch(() => {})
   },
   async deleteGroup(id) {
-    if (DB.isCloudGroup(id)) {
+    const g = DB.getGroup(id)
+    const isCloud = DB.isCloudGroup(id) || g?.isPublic
+    if (isCloud && DB.getSupabaseUrl()) {
       const { ok, error } = await cloudDeleteGroup(id)
       if (!ok) return { ok: false, error }
     }
-    DB._saveGroups(DB.getGroups().filter(g => g.id !== id))
+    DB._saveGroups(DB.getGroups().filter(x => x.id !== id))
     DB.setCloudGroup(id, false)
     return { ok: true }
   },
