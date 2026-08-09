@@ -110,18 +110,11 @@ function render() {
 
   // 폼 상태
   const editQ = editId ? g.quotes.find(q => q.id === editId) : null
-  const memberOptions = g.members.map(m =>
-    `<option value="${m.id}" ${m.isMe?'selected':''}>${m.name}${m.isMe?' (나)':''}</option>`
-  ).join('')
 
   const formHTML = showForm ? `
     <div class="card mb-5" style="border:2px solid rgba(184,212,232,.4)">
       <p class="font-semi text-sm mb-3">${editId ? '구절 수정' : '구절 추가'}</p>
       <div class="fields">
-        ${!editId ? `<div class="field">
-          <label class="label">멤버</label>
-          <select id="q-member" class="select">${memberOptions}</select>
-        </div>` : ''}
         <div class="field">
           <label class="label">밑줄 구절 *</label>
           <textarea id="q-content" class="textarea" style="font-family:'Noto Serif KR',serif;font-size:15px;min-height:100px"
@@ -227,9 +220,10 @@ function saveQuote() {
       DB.saveGroup(g)
     }
   } else {
-    const memberId = document.getElementById('q-member')?.value
+    const myMember = g.members.find(m => m.isMe)
+    if (!myMember) { toast('멤버 정보를 찾을 수 없어요.'); return }
     DB.addQuote(gid, {
-      id: uid(), memberId,
+      id: uid(), memberId: myMember.id,
       content,
       comment:    document.getElementById('q-comment')?.value.trim() || null,
       pageNumber: document.getElementById('q-page')?.value || null,
