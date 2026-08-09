@@ -56,7 +56,15 @@ const DB = {
     DB._saveGroups(gs)
     cloudPush(g.id).catch(() => {})
   },
-  deleteGroup(id) { DB._saveGroups(DB.getGroups().filter(g => g.id !== id)) },
+  async deleteGroup(id) {
+    if (DB.isCloudGroup(id)) {
+      const { ok, error } = await cloudDeleteGroup(id)
+      if (!ok) return { ok: false, error }
+    }
+    DB._saveGroups(DB.getGroups().filter(g => g.id !== id))
+    DB.setCloudGroup(id, false)
+    return { ok: true }
+  },
 
   addQuote(groupId, quote) {
     const g = DB.getGroup(groupId); if (!g) return
@@ -198,6 +206,12 @@ async function cloudPush(groupId) {
   const { error } = await sb.from('gd_groups')
     .upsert({ id: groupId, data: g, updated_at: now }, { onConflict: 'id' })
   return !error
+}
+
+async function cloudDeleteGroup(groupId) {
+  const sb = await _getSB(); if (!sb) return { ok: false, error: 'Supabase 설정이 없어요' }
+  const { error } = await sb.from('gd_groups').delete().eq('id', groupId)
+  return { ok: !error, error: error?.message }
 }
 
 async function cloudPull(groupId) {
