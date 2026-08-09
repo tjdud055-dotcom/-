@@ -47,6 +47,17 @@ function replyBlock(g, q, myMemberId) {
   return `${repliesHTML}${replySection}`
 }
 
+function questionContentHTML(content, blur, extraStyle = '') {
+  if (!blur) return `<p style="padding-top:2px;line-height:1.7;flex:1;${extraStyle}">${content}</p>`
+  return `
+    <div style="position:relative;flex:1">
+      <p class="quote-blur" style="padding-top:2px;line-height:1.7;${extraStyle}">${content}</p>
+      <div style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center">
+        <span style="background:rgba(255,255,255,.75);backdrop-filter:blur(4px);border-radius:8px;padding:5px 12px;font-size:12px;color:var(--text-mid)">🔒 전원 완독 후 공개</span>
+      </div>
+    </div>`
+}
+
 function render() {
   const g = DB.getGroup(gid)
   if (!g) { location.href = 'dashboard.html'; return }
@@ -55,15 +66,19 @@ function render() {
   const ai        = g.questions.filter(q => q.isAI)
   const manual    = g.questions.filter(q => !q.isAI)
   const myMember  = g.members.find(m => m.isMe)
+  const allDone   = g.members.length > 0 && g.members.every(m => m.hasCompleted)
+  const lockNote  = !allDone
+    ? `<div class="alert alert-yellow mb-4">🔒 <b>전원이 완독하면 토론 질문과 답변이 공개됩니다.</b> 그룹 페이지에서 완독 상태를 변경할 수 있어요.</div>`
+    : ''
 
   const aiHTML = ai.length
     ? ai.map((q,i) => `
         <div class="card" style="background:rgba(212,197,240,.1);border-color:rgba(212,197,240,.35)">
           <div class="flex gap-3 items-start">
             <span class="q-num">Q${i+1}</span>
-            <p style="padding-top:2px;line-height:1.7;flex:1">${q.content}</p>
+            ${questionContentHTML(q.content, !allDone)}
           </div>
-          ${replyBlock(g, q, myMember?.id)}
+          ${allDone ? replyBlock(g, q, myMember?.id) : ''}
         </div>`).join('')
     : `<div class="card text-center" style="padding:28px;color:var(--text-lt)">
         <p style="font-size:22px;margin-bottom:8px">✨</p>
@@ -80,11 +95,11 @@ function render() {
           <div class="flex gap-3 items-start">
             <span class="q-num" style="color:var(--peach)">Q${i+1}</span>
             <div class="flex-1">
-              <p style="line-height:1.7">${q.content}</p>
+              ${questionContentHTML(q.content, !allDone)}
               <button onclick="delQ('${q.id}')" class="text-xs text-lt mt-2" style="background:none;border:none;cursor:pointer;padding:0">삭제</button>
             </div>
           </div>
-          ${replyBlock(g, q, myMember?.id)}
+          ${allDone ? replyBlock(g, q, myMember?.id) : ''}
         </div>`).join('')
     : `<p class="text-sm text-lt text-center" style="padding:12px 0">아직 등록된 질문이 없어요.</p>`
 
@@ -105,6 +120,7 @@ function render() {
       <span class="font-semi font-serif" style="font-size:16px">토론 질문</span>
     </div>
     <p class="text-sm text-mid mb-6">${g.book.title} · ${g.book.author}</p>
+    ${lockNote}
 
     <div class="mb-7">
       <div class="section-title mb-4">
