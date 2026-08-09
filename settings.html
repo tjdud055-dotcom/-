@@ -296,7 +296,7 @@ function clearKey() {
 function exportAll() {
   const data = {
     profile: DB.getMe(),
-    groups: DB.getGroups(),
+    groups: DB.myGroups(),
     exportedAt: new Date().toISOString(),
   }
   const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' })

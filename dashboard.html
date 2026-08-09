@@ -93,7 +93,7 @@ function groupCardHTML(g) {
 }
 
 function render() {
-  const groups = DB.getGroups()
+  const groups = DB.myGroups()
   const reading   = groups.filter(g => g.status === 'reading')
   const completed = groups.filter(g => g.status === 'completed')
 

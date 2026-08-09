@@ -49,6 +49,11 @@ const DB = {
   _saveGroups(gs){ localStorage.setItem('gd_groups', JSON.stringify(gs)) },
 
   getGroup(id)  { return DB.getGroups().find(g => g.id === id) ?? null },
+  isMyGroup(g) {
+    const me = DB.getMe(); if (!me || !g?.members) return false
+    return g.members.some(m => (me.userId && m.userId === me.userId) || m.name === me.name)
+  },
+  myGroups() { return DB.getGroups().filter(DB.isMyGroup) },
   saveGroup(g) {
     const gs = DB.getGroups()
     const i = gs.findIndex(x => x.id === g.id)
