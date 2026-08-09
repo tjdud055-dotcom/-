@@ -53,13 +53,14 @@ function render() {
               <div class="avatar" style="${avatarStyle(i, m.isMe)}">${m.name[0]}</div>
               <span class="text-sm flex-1">${m.name}${m.isMe ? ' (나)' : ''}</span>
               ${totalPages ? `<span class="text-xs" style="color:${color};font-weight:600">${pctR}%</span>` : ''}
+              ${m.isMe ? `
               <div class="flex items-center gap-1">
                 <input type="number" min="0" max="${totalPages || 9999}" value="${curPage || ''}"
                   placeholder="0"
                   onchange="savePage('${m.id}', this.value)"
                   style="width:52px;padding:3px 7px;border-radius:7px;border:1.5px solid var(--border);font-size:12px;text-align:right;font-family:inherit;color:var(--text)">
                 <span class="text-xs text-lt">p</span>
-              </div>
+              </div>` : `<span class="text-xs text-lt">${curPage}p</span>`}
             </div>
             <div class="progress-wrap">
               <div style="height:100%;border-radius:99px;transition:width .4s;width:${pctR}%;background:${color}"></div>
@@ -74,13 +75,20 @@ function render() {
       <div class="flex items-center gap-2">
         <div class="avatar" style="${avatarStyle(i, m.isMe)}">${m.name[0]}</div>
         <span class="text-sm flex-1 truncate">${m.name}${m.isMe?' (나)':''}</span>
+        ${m.isMe ? `
         <button onclick="toggleComplete('${m.id}', ${!m.hasCompleted})"
           class="btn btn-sm" style="${m.hasCompleted
             ? 'background:rgba(197,232,192,.5);color:var(--text);border:1px solid rgba(197,232,192,.8)'
             : 'background:var(--cream);border:1px solid var(--border);color:var(--text-lt)'
           }">
           ${m.hasCompleted ? '✓ 완독' : '읽는 중'}
-        </button>
+        </button>` : `
+        <span class="btn btn-sm" style="pointer-events:none;${m.hasCompleted
+            ? 'background:rgba(197,232,192,.5);color:var(--text);border:1px solid rgba(197,232,192,.8)'
+            : 'background:var(--cream);border:1px solid var(--border);color:var(--text-lt)'
+          }">
+          ${m.hasCompleted ? '✓ 완독' : '읽는 중'}
+        </span>`}
       </div>
       ${m.hasCompleted && m.completionNote ? `
         <div style="margin:6px 0 2px 36px;padding:6px 10px;background:rgba(245,230,163,.35);border-radius:8px;font-size:12px;color:var(--text-mid);line-height:1.5">

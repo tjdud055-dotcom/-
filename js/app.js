@@ -101,7 +101,7 @@ const DB = {
 
   setMemberPage(groupId, memberId, page) {
     const g = DB.getGroup(groupId); if (!g) return
-    const m = g.members.find(m => m.id === memberId); if (!m) return
+    const m = g.members.find(m => m.id === memberId); if (!m || !m.isMe) return
     m.currentPage = page ? Math.max(0, parseInt(page)) : 0
     DB.saveGroup(g)
   },
@@ -113,7 +113,7 @@ const DB = {
 
   setMemberComplete(groupId, memberId, done, note) {
     const g = DB.getGroup(groupId); if (!g) return
-    const m = g.members.find(m => m.id === memberId); if (!m) return
+    const m = g.members.find(m => m.id === memberId); if (!m || !m.isMe) return
     m.hasCompleted   = done
     m.completedAt    = done ? new Date().toISOString() : null
     m.completionNote = done ? (note || null) : null
