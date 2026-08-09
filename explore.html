@@ -55,7 +55,6 @@ renderNav('explore')
   const { data, error } = await sb
     .from('gd_groups')
     .select('id, data')
-    .filter('data->>status', 'eq', 'reading')
     .order('updated_at', { ascending: false })
     .limit(200)
 
@@ -67,11 +66,14 @@ renderNav('explore')
     return
   }
 
-  // isPublic 클라이언트 필터 (JSONB 불리언 비교 이슈 우회), 내 그룹·정원 마감 제외
+  // isPublic 클라이언트 필터 (JSONB 불리언 비교 이슈 우회), 내 그룹·정원 마감·기한초과 제외
+  // 기존 멤버가 전원 완독해도(status==='completed') 정원이 남아있고 기한 전이면 계속 노출
   const myGroups = new Set(DB.myGroups().map(g => g.id))
   const available = (data || [])
     .map(row => row.data)
-    .filter(g => g && g.isPublic === true && !myGroups.has(g.id) && g.members.length < (g.maxMembers || 8))
+    .filter(g => g && g.isPublic === true && !myGroups.has(g.id)
+      && g.members.length < (g.maxMembers || 8)
+      && daysLeft(g.deadline) >= 0)
 
   if (!available.length) {
     document.getElementById('empty').classList.remove('hidden')
@@ -81,9 +83,10 @@ renderNav('explore')
   const list = document.getElementById('list')
   list.classList.remove('hidden')
   list.innerHTML = available.map(g => {
-    const dl  = daysLeft(g.deadline)
-    const cnt = g.members.length
-    const max = g.maxMembers || 8
+    const dl   = daysLeft(g.deadline)
+    const cnt  = g.members.length
+    const max  = g.maxMembers || 8
+    const done = g.members.filter(m => m.hasCompleted).length
     return `
       <a href="invite.html?id=${g.id}" style="text-decoration:none">
         <div class="card" style="height:100%;display:flex;flex-direction:column;gap:14px;transition:all .15s;cursor:pointer"
@@ -99,6 +102,7 @@ renderNav('explore')
             </div>
           </div>
           ${g.description ? `<p class="text-sm text-mid" style="display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden">${g.description}</p>` : ''}
+          ${done > 0 ? `<span class="badge badge-green" style="align-self:flex-start">✓ ${done}/${max} 완독</span>` : ''}
           <div class="flex justify-between text-xs text-lt mt-auto">
             <span>👥 ${cnt}/${max}명</span>
             <span ${dl<=3&&dl>=0?'style="color:#e87070;font-weight:500"':''}>D-${dl>0?dl:dl===0?'오늘':'기한초과'}</span>
