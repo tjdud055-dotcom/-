@@ -125,8 +125,9 @@ function renderMyReplies() {
   const groups = DB.myGroups()
   let items = []
   groups.forEach(g => {
+    const myM = g.members.find(m => m.isMe)
     g.quotes.forEach(q => {
-      ;(q.replies || []).filter(r => r.isMe).forEach(r => {
+      ;(q.replies || []).filter(r => r.memberId === myM?.id).forEach(r => {
         const author = g.members.find(m => m.id === q.memberId)
         items.push({ r, q, g, author })
       })

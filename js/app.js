@@ -96,7 +96,23 @@ const DB = {
   deleteReply(groupId, quoteId, replyId) {
     const g = DB.getGroup(groupId); if (!g) return
     const q = g.quotes.find(q => q.id === quoteId); if (!q) return
-    q.replies = (q.replies || []).filter(r => r.id !== replyId); DB.saveGroup(g)
+    const myM = g.members.find(m => m.isMe)
+    q.replies = (q.replies || []).filter(r => !(r.id === replyId && r.memberId === myM?.id))
+    DB.saveGroup(g)
+  },
+
+  addQuestionReply(groupId, questionId, reply) {
+    const g = DB.getGroup(groupId); if (!g) return
+    const q = g.questions.find(q => q.id === questionId); if (!q) return
+    if (!q.replies) q.replies = []
+    q.replies.push(reply); DB.saveGroup(g)
+  },
+  deleteQuestionReply(groupId, questionId, replyId) {
+    const g = DB.getGroup(groupId); if (!g) return
+    const q = g.questions.find(q => q.id === questionId); if (!q) return
+    const myM = g.members.find(m => m.isMe)
+    q.replies = (q.replies || []).filter(r => !(r.id === replyId && r.memberId === myM?.id))
+    DB.saveGroup(g)
   },
 
   setMemberPage(groupId, memberId, page) {

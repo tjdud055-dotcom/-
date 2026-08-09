@@ -14,23 +14,56 @@
 const me = requireProfile(); if (!me) throw 0
 const gid = param('id')
 if (!gid) { location.href = 'dashboard.html'; throw 0 }
-let showForm = false, generating = false
+let showForm = false, generating = false, replyOpenId = null
+
+function replyBlock(g, q, myMemberId) {
+  const replies = q.replies || []
+  const repliesHTML = replies.length ? `
+    <div style="margin-top:12px;padding-top:10px;border-top:1px solid var(--border);display:flex;flex-direction:column;gap:8px">
+      ${replies.map(r => `
+        <div class="flex gap-2 items-start">
+          <div class="avatar" style="width:22px;height:22px;font-size:10px;flex-shrink:0;${avatarStyle(r.memberIdx ?? 0, false)}">
+            ${r.memberName[0]}
+          </div>
+          <div class="flex-1 min-w-0">
+            <span class="text-xs" style="font-weight:600">${r.memberName}</span>
+            <span class="text-xs text-lt"> · ${fmtDate(r.createdAt)}</span>
+            <p class="text-sm" style="margin-top:2px;line-height:1.5">${r.content}</p>
+          </div>
+          ${r.memberId === myMemberId ? `<button onclick="delReply('${q.id}','${r.id}')" style="background:none;border:none;cursor:pointer;color:var(--text-lt);font-size:18px;line-height:1;flex-shrink:0;padding:0">×</button>` : ''}
+        </div>`).join('')}
+    </div>` : ''
+
+  const replySection = replyOpenId === q.id
+    ? `<div class="flex gap-2 mt-3">
+        <input id="ri-${q.id}" class="input flex-1" style="font-size:13px;padding:7px 10px" placeholder="의견을 남겨보세요..." maxlength="300">
+        <button onclick="submitReply('${q.id}')" class="btn btn-primary btn-sm shrink-0">등록</button>
+        <button onclick="closeReply()" class="btn btn-secondary btn-sm shrink-0">취소</button>
+       </div>`
+    : `<button onclick="openReply('${q.id}')" class="text-xs text-lt mt-3" style="background:none;border:none;cursor:pointer;padding:0">
+        💬 ${replies.length ? `답변 ${replies.length}` : '답변하기'}
+       </button>`
+
+  return `${repliesHTML}${replySection}`
+}
 
 function render() {
   const g = DB.getGroup(gid)
   if (!g) { location.href = 'dashboard.html'; return }
   renderNav()
-  const hasKey = !!DB.getApiKey()
-  const ai     = g.questions.filter(q => q.isAI)
-  const manual = g.questions.filter(q => !q.isAI)
+  const hasKey    = !!DB.getApiKey()
+  const ai        = g.questions.filter(q => q.isAI)
+  const manual    = g.questions.filter(q => !q.isAI)
+  const myMember  = g.members.find(m => m.isMe)
 
   const aiHTML = ai.length
     ? ai.map((q,i) => `
         <div class="card" style="background:rgba(212,197,240,.1);border-color:rgba(212,197,240,.35)">
           <div class="flex gap-3 items-start">
             <span class="q-num">Q${i+1}</span>
-            <p style="padding-top:2px;line-height:1.7">${q.content}</p>
+            <p style="padding-top:2px;line-height:1.7;flex:1">${q.content}</p>
           </div>
+          ${replyBlock(g, q, myMember?.id)}
         </div>`).join('')
     : `<div class="card text-center" style="padding:28px;color:var(--text-lt)">
         <p style="font-size:22px;margin-bottom:8px">✨</p>
@@ -51,6 +84,7 @@ function render() {
               <button onclick="delQ('${q.id}')" class="text-xs text-lt mt-2" style="background:none;border:none;cursor:pointer;padding:0">삭제</button>
             </div>
           </div>
+          ${replyBlock(g, q, myMember?.id)}
         </div>`).join('')
     : `<p class="text-sm text-lt text-center" style="padding:12px 0">아직 등록된 질문이 없어요.</p>`
 
@@ -120,6 +154,32 @@ async function genAI() {
   if (ok) toast('AI 질문이 생성됐어요 ✓')
   else    toast('AI 질문 생성 실패. API 키를 확인해주세요.')
   render()
+}
+
+function openReply(qid) {
+  replyOpenId = qid; render()
+  setTimeout(() => document.getElementById('ri-' + qid)?.focus(), 0)
+}
+function closeReply() { replyOpenId = null; render() }
+
+function submitReply(qid) {
+  const input = document.getElementById('ri-' + qid)
+  const content = input?.value.trim()
+  if (!content) { toast('의견을 입력해주세요.'); return }
+  const g = DB.getGroup(gid); if (!g) return
+  const myMember = g.members.find(m => m.isMe); if (!myMember) return
+  const myIdx    = g.members.findIndex(m => m.isMe)
+  DB.addQuestionReply(gid, qid, {
+    id: uid(),
+    memberId: myMember.id, memberName: myMember.name, memberIdx: myIdx,
+    content,
+    createdAt: new Date().toISOString(),
+  })
+  replyOpenId = null; render()
+}
+
+function delReply(qid, rid) {
+  DB.deleteQuestionReply(gid, qid, rid); render()
 }
 
 render()
