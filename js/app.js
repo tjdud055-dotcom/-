@@ -54,6 +54,15 @@ const DB = {
     return g.members.some(m => (me.userId && m.userId === me.userId) || m.name === me.name)
   },
   myGroups() { return DB.getGroups().filter(DB.isMyGroup) },
+  // 구절/댓글/토론질문이 전원 공개되는 조건:
+  // (정원이 다 찼고 전원 완독) 또는 (완독 기한이 지났고 현재 참여 인원 전원 완독)
+  isRevealed(g) {
+    if (!g?.members?.length) return false
+    if (!g.members.every(m => m.hasCompleted)) return false
+    const isFull = g.members.length >= (g.maxMembers || 8)
+    const deadlinePassed = g.deadline ? daysLeft(g.deadline) < 0 : false
+    return isFull || deadlinePassed
+  },
   saveGroup(g) {
     const gs = DB.getGroups()
     const i = gs.findIndex(x => x.id === g.id)

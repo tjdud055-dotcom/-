@@ -25,6 +25,7 @@ function render() {
   const done       = g.members.filter(m => m.hasCompleted).length
   const total      = g.members.length
   const all        = done === total && total > 0
+  const revealed   = DB.isRevealed(g)
   const dl         = daysLeft(g.deadline)
   const pct        = total ? Math.round(done/total*100) : 0
   const myM        = g.members.find(m => m.isMe)
@@ -141,10 +142,12 @@ function render() {
       <div class="progress-wrap">
         <div class="progress-bar" style="width:${pct}%"></div>
       </div>
-      <p class="text-xs mt-2 ${all?'':'text-lt'}">
-        ${all
-          ? '<span style="color:var(--blue-dk);font-weight:500">🎉 모든 멤버가 완독했어요! 밑줄 구절을 확인해보세요.</span>'
-          : '전원이 완독하면 서로의 밑줄 구절이 공개됩니다 ✨'}
+      <p class="text-xs mt-2 ${revealed?'':'text-lt'}">
+        ${revealed
+          ? '<span style="color:var(--blue-dk);font-weight:500">🎉 밑줄 구절과 토론 질문이 공개됐어요!</span>'
+          : all
+            ? '참여 인원은 모두 완독했어요. 정원이 다 차거나 완독 기한이 지나면 공개됩니다 ✨'
+            : '정원이 다 차고 전원이 완독하면 서로의 밑줄 구절이 공개됩니다 ✨'}
       </p>
     </div>
 

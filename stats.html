@@ -165,7 +165,7 @@ function renderBookmarks() {
     g.quotes.filter(q => bmIds.includes(q.id)).forEach(q => {
       const mIdx  = g.members.findIndex(m => m.id === q.memberId)
       const m     = g.members[mIdx]
-      const blur  = !m?.hasCompleted
+      const blur  = !DB.isRevealed(g)
       items.push({ q, g, m, blur })
     })
   })
@@ -208,7 +208,7 @@ function renderAllQuotes() {
       ${g.quotes.map(q => {
         const mIdx = g.members.findIndex(m => m.id === q.memberId)
         const m    = g.members[mIdx]
-        const blur = !m?.hasCompleted
+        const blur = !DB.isRevealed(g)
         return `
           <div style="padding:10px 0;border-bottom:1px solid rgba(184,212,232,.15)">
             <div class="flex items-center gap-2 mb-1">
