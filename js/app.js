@@ -489,6 +489,30 @@ JSON으로만 응답: {"questions":["질문1","질문2","질문3","질문4","질
   return true
 }
 
+// ── AI 질문 생성 (서버 /api/generate-questions 경유, 서버 측 API 키 사용) ───────
+async function generateAIQuestionsServer(groupId, bookTitle, bookAuthor) {
+  const g = DB.getGroup(groupId)
+  if (!g) return { ok: false, error: '그룹을 찾을 수 없어요.' }
+
+  let res
+  try {
+    res = await fetch('/api/generate-questions', {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ bookTitle, bookAuthor }),
+    })
+  } catch (err) {
+    return { ok: false, error: '네트워크 오류: ' + (err?.message || 'unknown') }
+  }
+
+  const data = await res.json().catch(() => ({}))
+  if (!res.ok) return { ok: false, error: data.error || 'AI 질문 생성에 실패했어요.' }
+
+  data.questions.forEach(content =>
+    DB.addQuestion(groupId, { id: uid(), content, isAI: true, createdAt: new Date().toISOString() }))
+  return { ok: true, count: data.questions.length }
+}
+
 // ── 내보내기 / 가져오기 ────────────────────────────────────────────────────────
 function exportGroup(groupId) {
   const g = DB.getGroup(groupId)

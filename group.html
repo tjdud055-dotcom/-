@@ -165,6 +165,8 @@ function render() {
           </a>
         </div>
 
+        <button onclick="genAIQuestions()" id="ai-q-btn" class="btn btn-secondary btn-sm" style="width:100%">✨ AI 토론 질문 생성하기</button>
+
         <!-- 클라우드 / 내보내기 / 삭제 -->
         ${DB.getSupabaseUrl() ? `
         <div class="flex gap-2">
@@ -315,6 +317,16 @@ function launchConfetti() {
   }
 
   requestAnimationFrame(frame)
+}
+
+async function genAIQuestions() {
+  const g = DB.getGroup(id); if (!g) return
+  const btn = document.getElementById('ai-q-btn')
+  if (btn) { btn.disabled = true; btn.textContent = 'AI 질문 생성 중...' }
+  const { ok, error, count } = await generateAIQuestionsServer(id, g.book.title, g.book.author)
+  if (!ok) { toast('AI 질문 생성 실패: ' + error); render(); return }
+  toast(`✨ AI 토론 질문 ${count}개가 생성됐어요`)
+  render()
 }
 
 async function deleteGroup() {
