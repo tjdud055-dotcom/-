@@ -1,5 +1,31 @@
 // POST { bookTitle, bookAuthor } -> { questions: string[] }
 // Gemini API 키는 Vercel 프로젝트의 환경변수 GEMINI_API_KEY로 설정합니다.
+
+// Gemini는 responseMimeType:'application/json'을 줘도 가끔 ```json ... ``` 코드블록으로
+// 감싸거나 앞뒤에 설명 문구를 붙여 보낼 때가 있어서, 곧바로 JSON.parse하면 실패할 수 있습니다.
+// 코드블록을 벗겨내고, 그래도 안 되면 첫 '{'~마지막 '}' 구간만 잘라서 한 번 더 시도합니다.
+function parseQuestionsJSON(raw) {
+  const attempts = [raw.trim()]
+
+  const fenceMatch = raw.match(/```(?:json)?\s*([\s\S]*?)\s*```/i)
+  if (fenceMatch) attempts.push(fenceMatch[1].trim())
+
+  const start = raw.indexOf('{')
+  const end = raw.lastIndexOf('}')
+  if (start !== -1 && end !== -1 && end > start) attempts.push(raw.slice(start, end + 1).trim())
+
+  let lastErr
+  for (const text of attempts) {
+    if (!text) continue
+    try {
+      return JSON.parse(text).questions
+    } catch (err) {
+      lastErr = err
+    }
+  }
+  throw lastErr || new Error('빈 응답')
+}
+
 module.exports = async (req, res) => {
   if (req.method !== 'POST') {
     res.status(405).json({ error: 'POST만 지원합니다.' })
@@ -77,9 +103,11 @@ module.exports = async (req, res) => {
   try {
     const data = await geminiRes.json()
     const raw = data?.candidates?.[0]?.content?.parts?.[0]?.text ?? ''
+    console.log(`[generate-questions] Gemini raw text (length=${raw.length}):`, raw)
+
     let questions
     try {
-      questions = JSON.parse(raw).questions
+      questions = parseQuestionsJSON(raw)
     } catch (parseErr) {
       console.error('[generate-questions] AI 응답 JSON 파싱 실패. raw text:', raw, parseErr)
       res.status(502).json({ error: 'AI 응답을 해석하지 못했어요.' })
