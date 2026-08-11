@@ -517,7 +517,7 @@ async function generateAIQuestionsServer(groupId, bookTitle, bookAuthor) {
   const data = await res.json().catch(() => ({}))
   if (!res.ok) {
     const msg = data.error || 'AI 질문 생성에 실패했어요.'
-    return { ok: false, error: data.status ? `${msg} (Anthropic ${data.status})` : msg }
+    return { ok: false, error: data.status ? `${msg} (Gemini ${data.status})` : msg }
   }
 
   data.questions.forEach(content =>
