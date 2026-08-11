@@ -109,14 +109,25 @@ module.exports = async (req, res) => {
 책 제목: ${bookTitle}
 저자: ${bookAuthor || '미상'}
 
-요구사항: 책의 핵심 주제 관련, 개인 경험과 연결, 해석과 감상을 묻는 질문, 한국어, 간결한 한 문장.
-중요: 질문 문장 안에는 큰따옴표(")를 절대 쓰지 마세요. 인용이나 강조가 필요하면 작은따옴표(')를 대신 쓰세요.
-다른 설명 없이 JSON으로만 응답하세요: {"questions":["질문1","질문2","질문3"]}`,
+요구사항: 책의 핵심 주제 관련, 개인 경험과 연결, 해석과 감상을 묻는 질문, 한국어, 간결한 한 문장.`,
       }],
     }],
     generationConfig: {
       maxOutputTokens: 1024,
       responseMimeType: 'application/json',
+      // 응답 구조를 스키마로 강제합니다. Gemini가 이 스키마에 맞는 토큰만 생성하도록
+      // 제약되므로(constrained decoding), 프롬프트 문구로 유도하는 것과 달리 문자열
+      // 이스케이프가 깨진 JSON 자체가 나올 수 없습니다.
+      responseSchema: {
+        type: 'OBJECT',
+        properties: {
+          questions: {
+            type: 'ARRAY',
+            items: { type: 'STRING' },
+          },
+        },
+        required: ['questions'],
+      },
     },
   }
 
