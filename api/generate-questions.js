@@ -4,6 +4,51 @@
 // Gemini는 responseMimeType:'application/json'을 줘도 가끔 ```json ... ``` 코드블록으로
 // 감싸거나 앞뒤에 설명 문구를 붙여 보낼 때가 있어서, 곧바로 JSON.parse하면 실패할 수 있습니다.
 // 코드블록을 벗겨내고, 그래도 안 되면 첫 '{'~마지막 '}' 구간만 잘라서 한 번 더 시도합니다.
+//
+// 그래도 실패하면 문자열 값 안에 이스케이프 안 된 큰따옴표(예: 질문 문장 속 "인용")가
+// 섞여 들어와 JSON이 깨진 경우일 수 있어서(SyntaxError: Unterminated string), 이스케이프를
+// 보정한 버전으로 마지막으로 한 번 더 시도합니다.
+function escapeUnescapedQuotes(text) {
+  let result = ''
+  let inString = false
+  for (let i = 0; i < text.length; i++) {
+    const ch = text[i]
+
+    if (inString && ch === '\\') {
+      // 이미 이스케이프된 문자는 그대로 보존 (\", \\, \n 등)
+      result += ch + (text[i + 1] ?? '')
+      i++
+      continue
+    }
+
+    if (ch === '"') {
+      if (!inString) {
+        inString = true
+        result += ch
+        continue
+      }
+      // 문자열 안에서 큰따옴표를 만남: 이게 진짜 닫는 따옴표인지, 아니면 문장 속에
+      // 섞인 인용부호인지 뒤쪽을 살펴봐서 판단합니다. 공백을 건너뛴 다음 글자가
+      // , } ] : 중 하나거나 문자열 끝이면 "진짜 닫는 따옴표"로 보고,
+      // 그 외(한글/영문 등 내용이 이어짐)면 문장 속 인용부호로 보고 이스케이프합니다.
+      let j = i + 1
+      while (j < text.length && /\s/.test(text[j])) j++
+      const next = text[j]
+      const looksLikeClose = next === undefined || ',}]:'.includes(next)
+      if (looksLikeClose) {
+        inString = false
+        result += ch
+      } else {
+        result += '\\"'
+      }
+      continue
+    }
+
+    result += ch
+  }
+  return result
+}
+
 function parseQuestionsJSON(raw) {
   const attempts = [raw.trim()]
 
@@ -14,11 +59,15 @@ function parseQuestionsJSON(raw) {
   const end = raw.lastIndexOf('}')
   if (start !== -1 && end !== -1 && end > start) attempts.push(raw.slice(start, end + 1).trim())
 
+  // 위 세 가지 시도를 그대로도 해보고, 이스케이프 보정을 적용한 버전으로도 해봅니다.
+  const candidates = attempts.filter(Boolean)
+  for (const text of [...candidates]) candidates.push(escapeUnescapedQuotes(text))
+
   let lastErr
-  for (const text of attempts) {
-    if (!text) continue
+  for (const text of candidates) {
     try {
-      return JSON.parse(text).questions
+      const parsed = JSON.parse(text).questions
+      if (Array.isArray(parsed)) return parsed
     } catch (err) {
       lastErr = err
     }
@@ -61,6 +110,7 @@ module.exports = async (req, res) => {
 저자: ${bookAuthor || '미상'}
 
 요구사항: 책의 핵심 주제 관련, 개인 경험과 연결, 해석과 감상을 묻는 질문, 한국어, 간결한 한 문장.
+중요: 질문 문장 안에는 큰따옴표(")를 절대 쓰지 마세요. 인용이나 강조가 필요하면 작은따옴표(')를 대신 쓰세요.
 다른 설명 없이 JSON으로만 응답하세요: {"questions":["질문1","질문2","질문3"]}`,
       }],
     }],
