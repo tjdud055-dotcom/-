@@ -93,24 +93,39 @@ module.exports = async (req, res) => {
     console.warn(`[generate-questions] GEMINI_API_KEY 형식이 의심스러워요. prefix=${apiKey.slice(0, 4)} length=${apiKey.length} trimmed=${apiKey === apiKey.trim()}`)
   }
 
-  const { bookTitle, bookAuthor } = req.body || {}
+  const { bookTitle, bookAuthor, bookDescription } = req.body || {}
   if (!bookTitle || typeof bookTitle !== 'string') {
     res.status(400).json({ error: 'bookTitle이 필요해요.' })
     return
   }
+  // 방어적으로 한 번 더 길이를 제한합니다 (클라이언트에서도 500자로 잘라서 저장하지만,
+  // 혹시 다른 경로로 긴 값이 들어와도 프롬프트 토큰을 과하게 쓰지 않도록).
+  const description = typeof bookDescription === 'string' && bookDescription.trim()
+    ? bookDescription.trim().slice(0, 800)
+    : null
 
   const model = 'gemini-2.5-flash'
-  const requestBody = {
-    contents: [{
-      role: 'user',
-      parts: [{
-        text: `당신은 독서 토론 진행자입니다. 다음 책에 대한 깊이 있는 토론 질문을 3~5개 생성해주세요.
+  const promptText = description
+    ? `당신은 독서 토론 진행자입니다. 다음 책에 대한 깊이 있는 토론 질문을 3~5개 생성해주세요.
+
+책 제목: ${bookTitle}
+저자: ${bookAuthor || '미상'}
+줄거리/소개: ${description}
+
+요구사항: 개인 경험과 연결, 해석과 감상을 묻는 질문, 한국어, 간결한 한 문장.
+중요: 위 줄거리를 참고해서 이 책만의 구체적인 사건, 인물, 주제를 다루는 질문을 만들어주세요.
+다른 책에도 그대로 갖다 붙일 수 있는 뻔하고 형식적인 질문은 피해주세요.`
+    : `당신은 독서 토론 진행자입니다. 다음 책에 대한 깊이 있는 토론 질문을 3~5개 생성해주세요.
 
 책 제목: ${bookTitle}
 저자: ${bookAuthor || '미상'}
 
-요구사항: 책의 핵심 주제 관련, 개인 경험과 연결, 해석과 감상을 묻는 질문, 한국어, 간결한 한 문장.`,
-      }],
+요구사항: 책의 핵심 주제 관련, 개인 경험과 연결, 해석과 감상을 묻는 질문, 한국어, 간결한 한 문장.`
+
+  const requestBody = {
+    contents: [{
+      role: 'user',
+      parts: [{ text: promptText }],
     }],
     generationConfig: {
       maxOutputTokens: 2048,

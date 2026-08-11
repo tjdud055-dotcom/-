@@ -404,6 +404,14 @@ function searchSampleBooks(q) {
   )
 }
 
+// HTML 태그 제거 + 공백 정리 + 길이 제한 (책 소개는 저장/전송 용량을 위해 적당히 자릅니다)
+function cleanDescription(s) {
+  if (!s) return null
+  const clean = s.replace(/<[^>]*>/g, ' ').replace(/\s+/g, ' ').trim()
+  if (!clean) return null
+  return clean.length > 500 ? clean.slice(0, 500) + '…' : clean
+}
+
 // ── 카카오 책 검색 ───────────────────────────────────────────────────────────
 async function searchBooks(q) {
   const local    = searchSampleBooks(q)
@@ -429,6 +437,7 @@ async function searchBooks(q) {
           isbn:           isbn13,
           publisher:      b.publisher || null,
           published_year: b.datetime ? new Date(b.datetime).getFullYear() : null,
+          description:    cleanDescription(b.contents),
         }
       })
     } catch(_) {}
@@ -450,6 +459,7 @@ async function searchBooks(q) {
           isbn:           info.industryIdentifiers?.find(x => x.type === 'ISBN_13')?.identifier ?? null,
           publisher:      info.publisher ?? null,
           published_year: info.publishedDate ? parseInt(info.publishedDate) : null,
+          description:    cleanDescription(info.description),
         }
       })
     } catch(_) {}
@@ -508,7 +518,7 @@ async function generateAIQuestionsServer(groupId, bookTitle, bookAuthor) {
     res = await fetch('/api/generate-questions', {
       method: 'POST',
       headers: { 'content-type': 'application/json' },
-      body: JSON.stringify({ bookTitle, bookAuthor }),
+      body: JSON.stringify({ bookTitle, bookAuthor, bookDescription: g.book?.description || null }),
     })
   } catch (err) {
     return { ok: false, error: '네트워크 오류: ' + (err?.message || 'unknown') }
