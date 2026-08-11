@@ -113,7 +113,7 @@ module.exports = async (req, res) => {
       }],
     }],
     generationConfig: {
-      maxOutputTokens: 1024,
+      maxOutputTokens: 2048,
       responseMimeType: 'application/json',
       // 응답 구조를 스키마로 강제합니다. Gemini가 이 스키마에 맞는 토큰만 생성하도록
       // 제약되므로(constrained decoding), 프롬프트 문구로 유도하는 것과 달리 문자열
@@ -128,6 +128,12 @@ module.exports = async (req, res) => {
         },
         required: ['questions'],
       },
+      // gemini-2.5-flash는 기본적으로 "thinking"(내부 추론)에 maxOutputTokens 예산을
+      // 나눠 쓰는데, 이 예산을 thinking이 다 써버리면 실제 답변 text가 빈 문자열로
+      // 오면서 매번 "AI 응답을 해석하지 못했어요"로 이어졌을 가능성이 높습니다.
+      // 이 작업은 추론이 필요 없는 짧은 생성이라 thinking을 꺼서 예산을 전부
+      // 답변 생성에만 쓰게 합니다.
+      thinkingConfig: { thinkingBudget: 0 },
     },
   }
 
@@ -163,15 +169,36 @@ module.exports = async (req, res) => {
 
   try {
     const data = await geminiRes.json()
-    const raw = data?.candidates?.[0]?.content?.parts?.[0]?.text ?? ''
-    console.log(`[generate-questions] Gemini raw text (length=${raw.length}):`, raw)
+    const candidate = data?.candidates?.[0]
+    const raw = candidate?.content?.parts?.[0]?.text ?? ''
+    const finishReason = candidate?.finishReason
+    const blockReason = data?.promptFeedback?.blockReason
+
+    // raw가 비어있거나 문제가 될 만한 상황이면 원인을 바로 알 수 있게 항상 로깅합니다.
+    if (!raw || finishReason !== 'STOP' || blockReason) {
+      console.error(
+        `[generate-questions] 비정상 응답. finishReason=${finishReason} blockReason=${blockReason} candidatesCount=${data?.candidates?.length ?? 0} raw.length=${raw.length}`,
+        JSON.stringify(data).slice(0, 2000)
+      )
+    } else {
+      console.log(`[generate-questions] Gemini raw text (length=${raw.length}):`, raw)
+    }
+
+    if (blockReason) {
+      res.status(502).json({ error: '요청이 안전 필터에 의해 차단됐어요.', detail: blockReason })
+      return
+    }
+    if (!raw) {
+      res.status(502).json({ error: 'AI가 빈 응답을 반환했어요.', detail: `finishReason=${finishReason}` })
+      return
+    }
 
     let questions
     try {
       questions = parseQuestionsJSON(raw)
     } catch (parseErr) {
       console.error('[generate-questions] AI 응답 JSON 파싱 실패. raw text:', raw, parseErr)
-      res.status(502).json({ error: 'AI 응답을 해석하지 못했어요.' })
+      res.status(502).json({ error: 'AI 응답을 해석하지 못했어요.', detail: parseErr?.message })
       return
     }
     if (!Array.isArray(questions) || questions.length === 0) {
