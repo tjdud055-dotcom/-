@@ -28,8 +28,41 @@
       <input id="book-q" class="input flex-1" placeholder="책 제목 또는 저자 검색..." type="text">
       <button id="book-btn" class="btn btn-primary shrink-0">검색</button>
     </div>
-    <button type="button" onclick="showAllSamples()" class="text-xs text-lt mb-3" style="background:none;border:none;cursor:pointer;padding:0;text-decoration:underline">샘플 책 목록 보기</button>
+    <button type="button" onclick="openManualAdd()" class="text-xs text-lt mb-3" style="background:none;border:none;cursor:pointer;padding:0;text-decoration:underline">찾는 책이 없나요? 직접 추가하기</button>
     <div id="book-results" class="search-list"></div>
+
+    <div id="manual-add" class="hidden mt-3" style="border:2px solid rgba(184,212,232,.4);border-radius:14px;padding:16px">
+      <p class="font-semi text-sm mb-3">책 직접 추가하기</p>
+      <div class="fields">
+        <div class="field">
+          <label class="label">책 제목 *</label>
+          <input id="m-title" class="input" type="text" placeholder="책 제목" maxlength="100">
+        </div>
+        <div class="field">
+          <label class="label">지은이 *</label>
+          <input id="m-author" class="input" type="text" placeholder="지은이" maxlength="60">
+        </div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
+          <div class="field">
+            <label class="label">출판사 (선택)</label>
+            <input id="m-publisher" class="input" type="text" placeholder="출판사" maxlength="60">
+          </div>
+          <div class="field">
+            <label class="label">ISBN (선택)</label>
+            <input id="m-isbn" class="input" type="text" placeholder="ISBN" maxlength="20">
+          </div>
+        </div>
+        <div class="field">
+          <label class="label">페이지 수 *</label>
+          <input id="m-pages" class="input" type="number" min="1" max="9999" placeholder="예: 312">
+        </div>
+        <div class="flex gap-2 justify-end">
+          <button type="button" onclick="cancelManualAdd()" class="btn btn-secondary btn-sm">취소</button>
+          <button type="button" onclick="submitManualAdd()" class="btn btn-primary btn-sm">추가</button>
+        </div>
+      </div>
+    </div>
+
     <div id="sel-box" class="hidden mt-3 alert alert-green flex items-center gap-3">
       <span id="sel-cover"></span>
       <div class="min-w-0 flex-1"><p id="sel-title" class="font-semi truncate"></p><p id="sel-author" class="text-sm text-mid"></p></div>
@@ -168,7 +201,10 @@ async function doSearch() {
   const books = await searchBooks(q).catch(() => [])
   btn.disabled = false; btn.textContent = '검색'
   const el = document.getElementById('book-results')
-  if (!books.length) { el.innerHTML = '<p class="text-sm text-lt" style="padding:10px">결과가 없어요.</p>'; return }
+  if (!books.length) {
+    el.innerHTML = '<p class="text-sm text-lt" style="padding:10px">결과가 없어요. 아래 "직접 추가하기"로 등록해보세요.</p>'
+    return
+  }
   el.innerHTML = books.map((b,i) => `
     <div class="search-result" onclick="selectBook(${i})">
       ${bookCoverHTML(b.cover_url, b.title, 'sm')}
@@ -176,21 +212,13 @@ async function doSearch() {
     </div>`).join('')
   el._books = books
 }
-function showAllSamples() {
-  const el = document.getElementById('book-results')
-  el._books = SAMPLE_BOOKS
-  el.innerHTML = SAMPLE_BOOKS.map((b,i) => `
-    <div class="search-result" onclick="selectBook(${i})">
-      ${bookCoverHTML(b.cover_url, b.title, 'sm')}
-      <div class="min-w-0"><p class="font-semi text-sm truncate">${b.title}</p><p class="text-xs text-mid">${b.author}</p></div>
-    </div>`).join('')
-}
 
 document.getElementById('book-btn').addEventListener('click', doSearch)
 document.getElementById('book-q').addEventListener('keydown', e => e.key==='Enter' && (e.preventDefault(), doSearch()))
 
 function selectBook(i) {
   selBook = document.getElementById('book-results')._books[i]
+  document.getElementById('manual-add').classList.add('hidden')
   document.getElementById('sel-cover').innerHTML = bookCoverHTML(selBook.cover_url, selBook.title, 'sm')
   document.getElementById('sel-title').textContent = selBook.title
   document.getElementById('sel-author').textContent = selBook.author
@@ -204,6 +232,46 @@ function clearBook() {
   document.getElementById('to2').classList.add('hidden')
 }
 document.getElementById('to2').addEventListener('click', () => goStep(2))
+
+// ── 책 직접 추가하기 ───────────────────────────────────────────────────────────
+function openManualAdd() {
+  document.getElementById('book-results').innerHTML = ''
+  document.getElementById('manual-add').classList.remove('hidden')
+  document.getElementById('m-title').focus()
+}
+function cancelManualAdd() {
+  document.getElementById('manual-add').classList.add('hidden')
+  ;['m-title','m-author','m-publisher','m-isbn','m-pages'].forEach(id => document.getElementById(id).value = '')
+}
+function submitManualAdd() {
+  const title     = document.getElementById('m-title').value.trim()
+  const author    = document.getElementById('m-author').value.trim()
+  const publisher = document.getElementById('m-publisher').value.trim()
+  const isbn      = document.getElementById('m-isbn').value.trim()
+  const pages     = parseInt(document.getElementById('m-pages').value)
+
+  if (!title)   { toast('책 제목을 입력해주세요.'); return }
+  if (!author)  { toast('지은이를 입력해주세요.'); return }
+  if (!pages || pages < 1) { toast('페이지 수를 입력해주세요.'); return }
+
+  selBook = {
+    title, author,
+    cover_url:      null,
+    isbn:           isbn || null,
+    publisher:      publisher || null,
+    published_year: null,
+    description:    null,
+  }
+  // 독서 진행률 계산에 쓰는 총 페이지 수는 2단계 필드에 미리 채워둡니다 (2단계에서 수정 가능).
+  document.getElementById('g-pages').value = pages
+
+  document.getElementById('manual-add').classList.add('hidden')
+  document.getElementById('sel-cover').innerHTML = bookCoverHTML(null, title, 'sm')
+  document.getElementById('sel-title').textContent = title
+  document.getElementById('sel-author').textContent = author
+  document.getElementById('sel-box').classList.remove('hidden')
+  document.getElementById('to2').classList.remove('hidden')
+}
 
 // ── Step 2 → 3 ───────────────────────────────────────────────────────────────
 document.getElementById('to3').addEventListener('click', () => {
