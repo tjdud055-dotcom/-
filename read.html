@@ -17,7 +17,7 @@ if (!gid) { location.href = 'dashboard.html'; throw 0 }
 
 let showForm = false, editId = null, replyOpenId = null, bookmarkOnly = false
 
-function quoteCard(q, memberName, memberIdx, isMe, blur, samePageNames = [], myMemberId = null) {
+function quoteCard(q, memberName, memberIdx, isMe, blur, samePageNames = [], myMemberId = null, revealed = false) {
   const avStyle = blur ? 'background:#e0dcd8' : avatarStyle(memberIdx, isMe)
   const replies = q.replies || []
 
@@ -61,7 +61,7 @@ function quoteCard(q, memberName, memberIdx, isMe, blur, samePageNames = [], myM
           ${DB.isBookmarked(q.id) ? '⭐' : '☆'}
         </button>` : ''}
       </div>
-      ${samePageNames.length && !blur ? `<div style="margin-bottom:10px;padding:5px 12px;border-radius:8px;background:rgba(245,213,192,.35);border:1px solid rgba(245,213,192,.7);font-size:12px;color:var(--text-mid)">${samePageNames.map(n => n+'님').join(', ')}과 같은 부분에서 멈췄어요 ☺️</div>` : ''}
+      ${samePageNames.length && revealed ? `<div style="margin-bottom:10px;padding:5px 12px;border-radius:8px;background:rgba(245,213,192,.35);border:1px solid rgba(245,213,192,.7);font-size:12px;color:var(--text-mid)">${samePageNames.map(n => n+'님').join(', ')}과 같은 부분에서 멈췄어요 ☺️</div>` : ''}
       <div style="position:relative">
         <blockquote class="quote-content ${blur?'quote-blur':''}">${blur ? '이 구절은 해당 멤버가 완독 후 공개됩니다.' : q.content}</blockquote>
         ${q.comment && !blur ? `<p class="quote-comment">${q.comment}</p>` : ''}
@@ -137,7 +137,7 @@ function render() {
   const myHTML = myQuotes.length
     ? `<div class="section-title"><span class="section-dot" style="background:var(--blue-dk)"></span>내 구절 (${myQuotes.length})</div>
        <div style="display:flex;flex-direction:column;gap:12px;margin-bottom:32px">
-         ${myQuotes.map(q => quoteCard(q, myMember.name, g.members.findIndex(m => m.id === myMember.id), true, false, samePageWith(q), myMember.id)).join('')}
+         ${myQuotes.map(q => quoteCard(q, myMember.name, g.members.findIndex(m => m.id === myMember.id), true, false, samePageWith(q), myMember.id, revealed)).join('')}
        </div>` : ''
 
   // 다른 멤버별로 그룹화
@@ -155,7 +155,7 @@ function render() {
       ${Object.entries(otherByMember).map(([mId, qs]) => {
         const mIdx = g.members.findIndex(x => x.id === mId)
         const m = g.members[mIdx]
-        return qs.map(q => quoteCard(q, m?.name ?? '?', mIdx, false, !revealed, samePageWith(q), myMember?.id)).join('')
+        return qs.map(q => quoteCard(q, m?.name ?? '?', mIdx, false, !revealed, samePageWith(q), myMember?.id, revealed)).join('')
       }).join('')}
     </div>` : ''
 
@@ -171,7 +171,7 @@ function render() {
             ${bmQuotes.map(q => {
               const mIdx = g.members.findIndex(x => x.id === q.memberId)
               const m = g.members[mIdx]
-              return quoteCard(q, m?.name ?? '?', mIdx, false, !revealed, samePageWith(q), myMember?.id)
+              return quoteCard(q, m?.name ?? '?', mIdx, false, !revealed, samePageWith(q), myMember?.id, revealed)
             }).join('')}
            </div>`
         : `<div class="empty"><div class="empty-icon">⭐</div><p>북마크한 구절이 없어요.</p></div>`)
