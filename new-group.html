@@ -305,6 +305,7 @@ async function createGroup() {
     totalPages: parseInt(document.getElementById('g-pages').value) || null,
     maxMembers: parseInt(document.getElementById('g-max').value),
     members,
+    ownerId: me.userId || null,
     quotes: [],
     questions: [],
     status: 'reading',

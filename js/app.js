@@ -54,6 +54,14 @@ const DB = {
     return g.members.some(m => (me.userId && m.userId === me.userId) || m.name === me.name)
   },
   myGroups() { return DB.getGroups().filter(DB.isMyGroup) },
+  // 그룹 생성자 여부. g.ownerId가 있으면 그걸 기준으로, 없는(생성자 필드 도입 전) 그룹은
+  // members[0](항상 append만 되므로 생성 당시 첫 멤버 = 생성자)로 판단합니다.
+  isGroupOwner(g) {
+    const me = DB.getMe(); if (!me || !g?.members?.length) return false
+    const ownerId = g.ownerId || g.members[0]?.userId || null
+    if (ownerId) return me.userId === ownerId
+    return g.members[0]?.name === me.name
+  },
   // 구절/댓글/토론질문이 전원 공개되는 조건:
   // (정원이 다 찼고 전원 완독) 또는 (완독 기한이 지났고 현재 참여 인원 전원 완독)
   isRevealed(g) {
@@ -72,6 +80,7 @@ const DB = {
   },
   async deleteGroup(id) {
     const g = DB.getGroup(id)
+    if (!DB.isGroupOwner(g)) return { ok: false, error: '그룹 생성자만 삭제할 수 있어요.' }
     const isCloud = DB.isCloudGroup(id) || g?.isPublic
     if (isCloud && DB.getSupabaseUrl()) {
       const { ok, error } = await cloudDeleteGroup(id)
@@ -79,6 +88,16 @@ const DB = {
     }
     DB._saveGroups(DB.getGroups().filter(x => x.id !== id))
     DB.setCloudGroup(id, false)
+    return { ok: true }
+  },
+  leaveGroup(groupId) {
+    const g = DB.getGroup(groupId); if (!g) return { ok: false, error: '그룹을 찾을 수 없어요.' }
+    if (DB.isGroupOwner(g)) return { ok: false, error: '그룹 생성자는 나갈 수 없어요. 그룹을 삭제해주세요.' }
+    const myM = g.members.find(m => m.isMe)
+    if (!myM) return { ok: false, error: '멤버 정보를 찾을 수 없어요.' }
+    g.members = g.members.filter(m => m.id !== myM.id)
+    g.status = g.members.length && g.members.every(m => m.hasCompleted) ? 'completed' : 'reading'
+    DB.saveGroup(g)
     return { ok: true }
   },
 
